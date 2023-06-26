@@ -47,16 +47,38 @@ numF <- "00919923"
 numT <- "00908908"
 numT5 <- "00912148"
 tsT <- penit_to_ts(numT)
-data <- time(tsT)
-as.Date(data[1], origin = "2004-03-01")
-?as.Date
+tsT5 <- penit_to_ts(numT5)$`CPA/QPA`
+tsT5
+date <- time(tsT5); year <- floor(date); month <- round((date - floor(date)) * 12)+1
+date <- paste(year, month, "01", sep = "-")
+date <- lapply(date,MARGIN = 0,FUN = as.Date, format = "%Y-%m-%d")
+date
 
+COVID_seq <- seq(as.Date("2020-04-01"), as.Date("2021-05-01"), by = "month")
+list_outl <- which(date %in% COVID_seq)
+class(date[list_outl[1]])
+as.Date(date[list_outl])
+COVID_seq
+date
+x13_outl <- x13_spec(spec = c("RSA5c"),
+                     usrdef.outliersEnabled = TRUE,
+                     usrdef.outliersType = rep("TC", length(list_outl)),
+                     usrdef.outliersDate = as.character(date[list_outl] %>% unlist()%>% as.Date(origin = as.Date("1960-01-02"))),
+                     transform.function = "Auto")
 
 ts_to_X13 <- function(ts){
+  date <- time(ts); year <- floor(date); month <- round((date - floor(date)) * 12)+1
+  date <- paste(year, month, "01", sep = "-") 
+  test <- data.frame(date) %>% 
+    mutate(date=ifelse(str_length(date)==9 ,str_replace(date,"-","-0"),date))
+  date <- test$date 
+  COVID_seq <- seq(as.Date("2020-04-01"), as.Date("2021-05-01"), by = "month") %>% as.character()
+  list_outl <- which(date %in% COVID_seq)
   x13_outl <- x13_spec(spec = c("RSA5c"),
                        usrdef.outliersEnabled = TRUE,
-                       usrdef.outliersType = rep("TC", 21),
-                       usrdef.outliersDate = as.character(MA$dt_mois[191:211]),
+                       usrdef.outliersType = rep("TC", length(list_outl)),
+                       usrdef.outliersDate = date[list_outl],
                        transform.function = "Auto")
-  x13_model <- x13(tsma, x13_outl) # X-13ARIMA method
+  return(x13(ts, x13_outl)) # X-13ARIMA method
 }
+summary(ts_to_X13(penit_to_ts(numT))$regarima)

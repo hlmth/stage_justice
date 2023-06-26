@@ -30,6 +30,7 @@ ts_model <- tramoseats(tsma) # TRAMO-SEATS method
 
 # Basic plot with the original series, the trend and the SA series
 plot(x13_model, type_chart = "sa-trend")
+plot(x13_model)
 
 # S-I ratio
 plot(x13_model$decomposition)
@@ -38,5 +39,15 @@ dev.off()
 summary(x13_model$regarima)
 x13_model$regarima$forecast
 
+# create a vector of year and month strings
+year_month <- c("2005.000", "2005.083", "2005.167", "2005.250", "2005.333", "2005.417", "2005.500", "2005.583", "2005.667", "2005.750", "2005.833", "2005.917")
+
+# concatenate the year and month strings with a day string of "01"
+date_str <- paste(year_month, "01", sep = "-")
+
+# convert the character vector to a date format
+date <- as.Date(date_str)
+
+print(date_str)
 
 

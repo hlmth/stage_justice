@@ -1,0 +1,47 @@
+---
+title: ' '
+output:
+  html_document:
+    theme: cosmo
+    highlight: monochrome
+    css: R_mesure_Marianne.css
+    df_print: kable
+  geometry: margin=0.1cm
+  pdf_document: default
+---
+#Rapport stage prévision 
+
+
+```{r package, include=FALSE}
+library(haven)
+library(dplyr)
+library(utils)
+library(forecast)
+library(urca)
+library(readxl)
+library(tidyverse)
+library(ggplot2) #pour le graphe
+library(knitr)
+library(RJDemetra)
+source("function.R")
+```
+
+##Avancée et première prévision
+
+J'ai utilisé le package RJDemetra conseillé par Eurostat. Il propose deux modèles : le modème TRAMO-SEATS et le modèle X13-ARIMA. Je me suis tout d'abord concentré sur le modèle X13 qui permet de désaisonnaliser les séries et de faire des prévisions assez rapidement et est assez adapatble pour interpréter la période COVID comme des outliers TC (temporary change). 
+```{r plot_x13, echo=FALSE}
+ALL <- penit_to_ts("ALL")
+x13_outl <- x13_spec(spec = c("RSA5c"),
+                     usrdef.outliersEnabled = TRUE,
+                     usrdef.outliersType = rep("TC", 14),
+                     usrdef.outliersDate = as.character(MA$dt_mois[194:207]),
+                     transform.function = "Auto")
+
+x13_model <- x13(ALL, x13_outl) # X-13ARIMA method
+plot(x13_model, type_chart = "sa-trend", caption = "Y, tendance, SA")
+
+summary(x13_model$regarima)
+
+```
+
+
