@@ -46,4 +46,17 @@ penit_to_ts <- function(str){
 numF <- "00919923"
 numT <- "00908908"
 numT5 <- "00912148"
+tsT <- penit_to_ts(numT)
+data <- time(tsT)
+as.Date(data[1], origin = "2004-03-01")
+?as.Date
 
+
+ts_to_X13 <- function(ts){
+  x13_outl <- x13_spec(spec = c("RSA5c"),
+                       usrdef.outliersEnabled = TRUE,
+                       usrdef.outliersType = rep("TC", 21),
+                       usrdef.outliersDate = as.character(MA$dt_mois[191:211]),
+                       transform.function = "Auto")
+  x13_model <- x13(tsma, x13_outl) # X-13ARIMA method
+}
