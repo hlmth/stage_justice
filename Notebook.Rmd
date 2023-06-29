@@ -30,17 +30,15 @@ source("function.R")
 
 J'ai utilisé le package RJDemetra conseillé par Eurostat. Il propose deux modèles : le modème TRAMO-SEATS et le modèle X13-ARIMA. Je me suis tout d'abord concentré sur le modèle X13 qui permet de désaisonnaliser les séries et de faire des prévisions assez rapidement et est assez adapatble pour interpréter la période COVID comme des outliers TC (temporary change). 
 
-```{r, echo=FALSE, include=FALSE}
-tss<- tail(x13_model$final$series[,1], 12)
-tss
-plot(tss)
-```
+
 
 
 ```{r plot_x13, echo=FALSE, error=FALSE}
 ALL <- penit_to_ts("ALL")
 x13_model <- ts_to_X13(ALL)
 ts_fcst <- x13_model$regarima$forecast
+tss<- tail(x13_model$final$series[,1], 12)
+
 df <- data.frame(date = time(ts_fcst), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
 df1 <- data.frame(date = time(tss), series = as.numeric(tss))
 ggplot(data = df, aes(x = date, y = fcst)) + 
@@ -51,5 +49,14 @@ ggplot(data = df, aes(x = date, y = fcst)) +
 
 summary(x13_model$regarima)
 ```
+```{r, echo=FALSE, include=FALSE}
+tss
+plot(tss)
 
+plot(x13_model, type_chart = "sa-trend")
+plot(x13_model$decomposition)
+#layout(matrix(1:6, 3, 2));plot(x13_model$regarima, ask = FALSE);layout(matrix(1))
+
+
+```
 
