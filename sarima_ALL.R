@@ -28,32 +28,32 @@ mens_aggreg_ <- mens_aggreg %>%
 View(mens_aggreg_)
 
 
-    ALL <- mens_aggreg %>%
-      group_by(dt_mois) %>%
-      summarise(detenus = sum(detenus))
+ALL <- mens_aggreg %>%
+  group_by(dt_mois) %>%
+  summarise(detenus = sum(detenus))
 
 MA <- mens_aggreg %>% filter(quartier_etab == "MA/QMA") %>% group_by(dt_mois) %>% summarise(detenus_MA = sum(detenus) )
 View(MA)                             
-MA_2013 <- MA[107:190,]
+ALL_2013 <- ALL[107:190,]
 
-tsma <- ts(MA$detenus_MA, start = 2004, frequency = 12)
-tsma_2013 <- ts(MA_2013$detenus_MA, start = 2013, frequency = 12)
-plot(tsma_2013)
+tsALL <- ts(ALL$detenus, start = 2004, frequency = 12)
+tsALL_2013 <- ts(ALL_2013$detenus, start = 2013, frequency = 12)
+plot(tsALL_2013)
 
 
-plot(tsma,
+plot(tsALL,
      xlab = "Ann?e")
-acf(tsma)
-pacf(tsma)
-monthplot(tsma)
-lag.plot (tsma , lags =12 , layout =c(3 ,4) ,do.lines = FALSE )
+acf(tsALL)
+pacf(tsALL)
+monthplot(tsALL)
+lag.plot (tsALL , lags =12 , layout =c(3 ,4) ,do.lines = FALSE )
 
 
-plot(decompose(tsma))
+plot(decompose(tsALL))
 
 
 
-summary(lm(tsma ~ seq(1, 231))) #on teste la pr?sence d'une tendance
+summary(lm(tsALL ~ seq(1, 231))) #on teste la pr?sence d'une tendance
 
 # #m?me chose avec un test de Dickey Fuller
 # test.df.trend <- ur.df(log(tsma),
@@ -86,10 +86,10 @@ summary(lm(tsma ~ seq(1, 231))) #on teste la pr?sence d'une tendance
 # }
 
 
-diffp <- diff(log(tsma), differences = 1)
+diffp <- diff(log(tsALL), differences = 1)
 plot(diffp)
 
-diffs <- diff(log(tsma), differencies = 1, lag =12)
+diffs <- diff(log(tsALL), differencies = 1, lag =12)
 plot(diffs)
 
 diffsetp <- diff(diffp, differences = 1, lag = 12)
@@ -170,7 +170,7 @@ for (i in c(0:2)){
     aic <- round(AIC(model),3)
     bic <- round(BIC(model),3)
     tables[nrow(tables) +1, ] <- c(paste0('arima(',
-                                        as.character(i),',0,',as.character(j),')'), AIC = aic, BIC = bic)
+                                          as.character(i),',0,',as.character(j),')'), AIC = aic, BIC = bic)
   }
 }
 tablep <- data.frame(model = character(),AIC=  numeric(),BIC = numeric())
@@ -180,7 +180,7 @@ for (i in c(0:2)){
     aic <- round(AIC(model),3)
     bic <- round(BIC(model),3)
     tablep[nrow(tablep) +1, ] <- c(paste0('arima(',
-                                        as.character(i),',0,',as.character(j),')'), AIC = aic, BIC = bic)
+                                          as.character(i),',0,',as.character(j),')'), AIC = aic, BIC = bic)
   }
 }
 
@@ -193,8 +193,8 @@ print( tables[which.min(tables$BIC),])
 print( tablep[which.min(tablep$AIC),]) 
 print( tablep[which.min(tablep$BIC),]) 
 
-arima215 <- Arima(tsma, order = c(2,1,5), include.mean = F)
-sarima215 <- Arima(tsma, order = c(2,1,5), seasonal = c(2,0,0), include.mean = F)
+arima215 <- Arima(tsALL, order = c(2,1,5), include.mean = F)
+sarima215 <- Arima(tsALL, order = c(2,1,5), seasonal = c(2,1,0), include.mean = F)
 
 Qtests <- function(series, k, fitdf=0) {
   pvals <- apply(matrix(1:k), 1, FUN=function(l) {
@@ -213,7 +213,7 @@ Qtests(sarima215$residuals, 24, fitdf = 5)
 adj_r2 <- function(model){
   ss_res <- sum(model$residuals^2) #somme des résidus au carré
   p <- model$arma[1] 
-
+  
   q <- model$arma[2]
   ss_tot <- sum(diffp[-c(1:max(p,q))]^2)
   n <- model$nobs-max(p,q) 
@@ -222,6 +222,6 @@ adj_r2 <- function(model){
 }
 
 adj_r2(sarima215)
-ggseasonplot(tsma_2013, polar = FALSE)
+ggseasonplot(tsALL_2013, polar = FALSE)
 
 
