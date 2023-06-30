@@ -37,7 +37,7 @@ J'ai utilisé le package RJDemetra conseillé par Eurostat. Il propose deux mod�
 t <- 24 #nombre de mois que l'on veut afficher avant le forecast
 
 
-ALL <- penit_to_ts("ALL")
+ALL <- penit_to_ts("ALL", 2016)
 x13_model <- ts_to_X13(ALL)
 ts_fcst <- x13_model$regarima$forecast
 ts_s<- tail(x13_model$final$series[,1], t)
@@ -55,11 +55,12 @@ df <- df %>%
 ggplot(data = df, aes(x = date, y = fcst)) + 
   geom_line() + 
   scale_x_continuous(breaks = seq(sd, ld, by = "month"), labels = seq(sd, ld, by = "month")) +
- 
+  theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
   geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
 
 summary(x13_model$regarima)
 ```
+
 
 
 

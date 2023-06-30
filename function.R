@@ -2,18 +2,19 @@ library(haven)
 library(dplyr)
 library(utils)
 library(tidyverse)
-penit_to_ts <- function(str){
+penit_to_ts <- function(str, year = 0){
   mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
   if (str == "ALL") {
     ALL <- mens_aggreg %>%
+      filter(year(dt_mois) >= year) %>%
       group_by(dt_mois) %>%
       summarise(detenus = sum(detenus))
-    return(ts(ALL$detenus, start = c(2004, 3), frequency = 12))
+    return(ts(ALL$detenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12))
   }
   last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
   etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$cd_etablissement #liste des établissements ouvert le mois dernier
   d <- mens_aggreg %>%
-    filter(cd_etablissement %in% etab_ouvert) %>%
+    filter(cd_etablissement %in% etab_ouvert)%>%
     distinct(cd_etablissement, lc_etab, type_etab, quartier_etab) %>%
     group_by(cd_etablissement) %>%
     mutate(nb_quartier = n_distinct(quartier_etab)) 
@@ -21,7 +22,7 @@ penit_to_ts <- function(str){
   if (str %in% etab_ouvert){
     if (filter(d, cd_etablissement == str)$nb_quartier == 1){
       TS <- mens_aggreg %>%
-        filter(cd_etablissement == str) %>%
+        filter(cd_etablissement == str & year(dt_mois)>= year) %>%
         group_by(dt_mois) %>%
         summarise(detenus = sum(detenus))
       return(ts(TS$detenus, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12))
@@ -30,7 +31,7 @@ penit_to_ts <- function(str){
       quartiers <- unique(filter(mens_aggreg, cd_etablissement == str)$quartier_etab)
       for (qua in quartiers) {
         TS <- mens_aggreg %>%
-          filter(cd_etablissement == str & quartier_etab == qua) %>%
+          filter(cd_etablissement == str & quartier_etab == qua & year(dt_mois) >= year) %>%
           group_by(dt_mois) %>%
           summarise(detenus = sum(detenus))
         l_ts[[qua]] <- ts(TS$detenus, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12)
