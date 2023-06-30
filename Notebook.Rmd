@@ -34,29 +34,32 @@ J'ai utilisé le package RJDemetra conseillé par Eurostat. Il propose deux mod�
 
 
 ```{r plot_x13, echo=FALSE, error=FALSE}
+t <- 24 #nombre de mois que l'on veut afficher avant le forecast
+
+
 ALL <- penit_to_ts("ALL")
 x13_model <- ts_to_X13(ALL)
 ts_fcst <- x13_model$regarima$forecast
-tss<- tail(x13_model$final$series[,1], 12)
+ts_s<- tail(x13_model$final$series[,1], t)
 
-df <- data.frame(date = time(ts_fcst), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
-df1 <- data.frame(date = time(tss), series = as.numeric(tss))
+s <- start(ts_s)
+s <- paste(s[1],s[2], "01", sep = "-")
+sd <- as.Date(str_to_time(s)) #date de début
+ld <- sd %m+% months(t + 23)
+df <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA) 
+df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
+df <- df %>%
+  rbind(df2) %>%
+  mutate(date = seq(sd, ld, by = "month"))
+
 ggplot(data = df, aes(x = date, y = fcst)) + 
   geom_line() + 
-  scale_x_continuous(breaks = seq(as.Date("2022-06-01"), as.Date("2025-05-01"), by = "month"), labels = seq(as.Date("2022-06-01"), as.Date("2025-05-01"), by = "month")) +
+  scale_x_continuous(breaks = seq(sd, ld, by = "month"), labels = seq(sd, ld, by = "month")) +
  
   geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
 
 summary(x13_model$regarima)
 ```
-```{r, echo=FALSE, include=FALSE}
-tss
-plot(tss)
-
-plot(x13_model, type_chart = "sa-trend")
-plot(x13_model$decomposition)
-#layout(matrix(1:6, 3, 2));plot(x13_model$regarima, ask = FALSE);layout(matrix(1))
 
 
-```
 

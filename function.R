@@ -48,11 +48,16 @@ numT <- "00908908"
 numT5 <- "00912148"
 tsT <- penit_to_ts(numT)
 
+str_to_time <- function(str){
+  date_str <- ifelse(str_length(str)==9 ,str_replace(str,"-","-0"),str)
+  return(date_str)
+}
+
 ts_to_X13 <- function(ts){
   date <- time(ts); year <- floor(date); month <- round((date - floor(date)) * 12)+1
   date <- paste(year, month, "01", sep = "-") 
   df <- data.frame(date) %>% 
-    mutate(date=ifelse(str_length(date)==9 ,str_replace(date,"-","-0"),date))
+    mutate(date=str_to_time(date))
   date <- df$date 
   class(date[1])
   COVID_seq <- seq(as.Date("2020-04-01"), as.Date("2021-05-01"), by = "month") %>% as.character()
