@@ -2,12 +2,18 @@
 title: ' '
 output:
   html_document:
+    number_sections: false
     theme: cosmo
     highlight: monochrome
+    toc: FALSE
+    toc_float : FALSE
+    toc_depth : 2
     css: R_mesure_Marianne.css
     df_print: kable
   geometry: margin=0.1cm
   pdf_document: default
+editor_options: 
+  chunk_output_type: inline
 ---
 # Rapport stage prévision 
 
@@ -28,7 +34,7 @@ source("function.R")
 
 ## Avancée et première prévision
 
-J'ai utilisé le package RJDemetra conseillé par Eurostat. Il propose deux modèles : le modème TRAMO-SEATS et le modèle X13-ARIMA. Je me suis tout d'abord concentré sur le modèle X13 qui permet de désaisonnaliser les séries et de faire des prévisions assez rapidement et est assez adapatble pour interpréter la période COVID comme des outliers TC (temporary change). 
+J'ai utilisé le package RJDemetra conseillé par Eurostat. Il propose deux modèles : le modème TRAMO-SEATS et le modèle X13-ARIMA. Je me suis tout d'abord concentré sur le modèle X13 qui permet de désaisonnaliser les séries et de faire des prévisions assez rapidement. J'ai utilisé les données à partir de 2016 pour éviter le creux de 2015 et ne pas utiliser la série longue (déconseillé lorsque l'on fait des précvisions). Ce package m'a aussi permis d'interpréter la période COVID comme des outliers, après avoir tester plusieurs modèles, il est équivalent de considérer tous les données de la période COVID (d'avril 2020 à mai 2021) comme des TC (temporary change) ou de considérer la prémière chute d'avril à juin 2020 comme un AO (additive outlier) et le reste de la période comme des TC. 
 
 
 
@@ -54,7 +60,8 @@ df <- df %>%
 
 ggplot(data = df, aes(x = date, y = fcst)) + 
   geom_line() + 
-  scale_x_continuous(breaks = seq(sd, ld, by = "month"), labels = seq(sd, ld, by = "month")) +
+  labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
+  scale_x_continuous(breaks = seq(sd, ld, by = "3 month"), labels = seq(sd, ld, by = "3 month")) +
   theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
   geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
 
