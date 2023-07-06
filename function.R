@@ -68,8 +68,9 @@ ts_to_X13 <- function(ts){
                        usrdef.outliersType = rep("TC", length(list_outl)),
                        usrdef.outliersDate = date[list_outl],
                        transform.function = "Auto")
-  # return(x13_outl$regarima$regression$userdef$outliers$Final$date)
-  return(x13(ts, x13_outl)) # X-13ARIMA method
+  #return(x13_outl$regarima$regression$userdef$outliers$Final$date)
+  x13_model <- x13(ts, x13_outl)
+  return(x13_model$final$forecasts[,2]) # X-13ARIMA method
 }
 
 str_to_df <- function(str, t){
