@@ -63,19 +63,21 @@ ts_to_X13 <- function(ts){
   class(date[1])
   COVID_seq <- seq(as.Date("2020-04-01"), as.Date("2021-05-01"), by = "month") %>% as.character()
   list_outl <- which(date %in% COVID_seq)
-  x13_outl <- x13_spec(spec = c("RSA5c"),
-                       usrdef.outliersEnabled = TRUE,
-                       usrdef.outliersType = rep("TC", length(list_outl)),
-                       usrdef.outliersDate = date[list_outl],
-                       transform.function = "Auto")
-  #return(x13_outl$regarima$regression$userdef$outliers$Final$date)
-  x13_model <- x13(ts, x13_outl)
-  return(x13_model$final$forecasts[,2]) # X-13ARIMA method
+  return(list_outl)
+  # x13_outl <- x13_spec(spec = c("RSA5c"),
+  #                      usrdef.outliersEnabled = TRUE,
+  #                      usrdef.outliersType = rep("TC", length(list_outl)),
+  #                      usrdef.outliersDate = date[list_outl],
+  #                      transform.function = "Auto")
+  # return(x13_outl$regarima$regression$userdef$outliers$Final$date)
+  # x13_model <- x13(ts, x13_outl)
+  # return(x13_model$final$forecasts[,2]) # X-13ARIMA method
 }
 
-str_to_df <- function(str, t){
-  TS <- penit_to_ts(str, 2016)
-  x13_model <- ts_to_X13(TS)
+str_to_df <- function(model, t){
+  # TS <- penit_to_ts(str, 2016)
+  # x13_model <- ts_to_X13(TS)
+  x13_model <- model
   # return(x13_model$regarima$forecast)
   ts_fcst <- x13_model$regarima$forecast
   ts_s<- tail(x13_model$final$series[,1], t)
@@ -90,13 +92,13 @@ str_to_df <- function(str, t){
   df <- df %>%
     rbind(df2) %>%
     mutate(date = seq(sd, ld, by = "month"))
-  return(df)
-#   return(ggplot(data = df, aes(x = date, y = fcst)) +
-#     geom_line() +
-#     labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
-#     scale_x_continuous(breaks = seq(sd, ld, by = "3 month"), labels = seq(sd, ld, by = "3 month")) +
-#     theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
-#     geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2))
+  # return(df)
+  return(ggplot(data = df, aes(x = date, y = fcst)) +
+    geom_line() +
+    labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
+    scale_x_continuous(breaks = seq(sd, ld, by = "3 month"), labels = seq(sd, ld, by = "3 month")) +
+    theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+    geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2))
 }
 
 

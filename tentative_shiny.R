@@ -16,18 +16,25 @@ server <- function(input, output) {
   TS <- reactive({
     penit_to_ts(input$num_etab, 2016)
   })
-  X13 <- reactive({
+  list_outl <- reactive({
     ts_to_X13(TS())
   })
-  # data <- reactive({
-  #   X13()$final$forecasts
-  # })
+  x13_outl <- reactive({
+    x13_spec(spec = c("RSA5c"),
+             usrdef.outliersEnabled = TRUE,
+             usrdef.outliersType = rep("TC", length(list_outl())),
+             usrdef.outliersDate = date[list_outl()],
+             transform.function = "Auto")
+  })
+  x13_modele <- reactive({
+    x13(TS(), x13_outl())
+  })
   observe({
-    print("ça marche")
+    print(x13_modele()$regarima$forecast[,2])
   })
   output$plot <- renderPlot({
-    plot(X13())
+    str_to_df(x13_modele(), input$mois)
   })
- }
+}
 
 shinyApp(ui, server)
