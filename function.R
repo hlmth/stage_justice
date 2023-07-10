@@ -2,6 +2,7 @@ library(haven)
 library(dplyr)
 library(utils)
 library(tidyverse)
+library(RJDemetra)
 penit_to_ts <- function(str, year = 0){
   mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
   if (str == "ALL") {
@@ -63,7 +64,7 @@ ts_to_X13 <- function(ts){
   class(date[1])
   COVID_seq <- seq(as.Date("2020-04-01"), as.Date("2021-05-01"), by = "month") %>% as.character()
   list_outl <- which(date %in% COVID_seq)
-  return(list_outl)
+  return(date[list_outl])
   # x13_outl <- x13_spec(spec = c("RSA5c"),
   #                      usrdef.outliersEnabled = TRUE,
   #                      usrdef.outliersType = rep("TC", length(list_outl)),

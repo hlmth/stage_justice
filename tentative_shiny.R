@@ -16,14 +16,14 @@ server <- function(input, output) {
   TS <- reactive({
     penit_to_ts(input$num_etab, 2016)
   })
-  list_outl <- reactive({
+  date_outl <- reactive({
     ts_to_X13(TS())
   })
   x13_outl <- reactive({
     x13_spec(spec = c("RSA5c"),
              usrdef.outliersEnabled = TRUE,
-             usrdef.outliersType = rep("TC", length(list_outl())),
-             usrdef.outliersDate = date[list_outl()],
+             usrdef.outliersType = rep("TC", length(date_outl())),
+             usrdef.outliersDate = date_outl(),
              transform.function = "Auto")
   })
   x13_modele <- reactive({
