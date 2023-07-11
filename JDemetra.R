@@ -36,7 +36,7 @@ plot(X13_model)
 plot(X13_model$decomposition)
 layout(matrix(1:6, 3, 2));plot(X13_model$regarima, ask = FALSE);layout(matrix(1))
 dev.off()
-summary(X13_model$regarima)
+class(summary(X13_model$regarima))
 X13_model$regarima$forecast
 
 # create a vector of year and month strings
