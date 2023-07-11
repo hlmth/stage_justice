@@ -1,7 +1,7 @@
 library(shiny)
 library(ggplot2)
 library(knitr)
-source("function.R")
+source("function2.R")
 
 
 ui <- fluidPage(
@@ -12,7 +12,9 @@ ui <- fluidPage(
       numericInput(inputId = "mois", label = "Nombre de mois avant aujourd'hui que l'on veut afficher avant le forecast", value = 1, min = 1)
     ),
     mainPanel(
-      plotOutput(outputId =  "plot"),
+      plotOutput(outputId = "plot_detenus"),
+      plotOutput(outputId = "plot_condamnes"),
+      plotOutput(outputId = "plot_prevenus"),
       tabsetPanel(
         tabPanel("a", tableOutput("table1"), tableOutput("table5")),
         tabPanel("b", tableOutput("table2")),
@@ -24,11 +26,11 @@ ui <- fluidPage(
 )
 
 server <- function(input, output) {
-  TS <- reactive({
-    penit_to_ts(input$num_etab, 2016)
+  list_TS <- reactive({
+    penit_to_2ts(input$num_etab, 2016)
   })
   date_outl <- reactive({
-    ts_to_X13(TS())
+    ts_to_outl(list_TS()[[1]])
   })
   x13_outl <- reactive({
     x13_spec(spec = c("RSA5c"),
@@ -37,33 +39,43 @@ server <- function(input, output) {
              usrdef.outliersDate = date_outl(),
              transform.function = "Auto")
   })
-  x13_modele <- reactive({
-    x13(TS(), x13_outl())
+  list_x13_modele <- reactive({
+    list(x13(list_TS()[[1]], x13_outl()),
+         x13(list_TS()[[2]], x13_outl()),
+         x13(list_TS()[[3]], x13_outl()))
   })
   observe({
-    print(x13_modele()$regarima$forecast[,2])
+    print(list_x13_modele()[[1]]$regarima$forecast[,2])
   })
-  output$plot <- renderPlot({
-    str_to_df(x13_modele(), input$mois)
+  output$plot_detenus <- renderPlot({
+    list_mod_to_plt(list(
+      
+      list_x13_modele()[[1]]), input$mois)
   })
-  table <- reactive({
-    summary(x13_modele()$regarima)
+  output$plot_condamnes <- renderPlot({
+    mod_to_plt(list_x13_modele()[[2]], input$mois)
   })
-  output$table1 <- renderTable({
-    data.frame(table()$results_spec)
+  output$plot_prevenus <- renderPlot({
+    mod_to_plt(list_x13_modele()[[3]], input$mois)
   })
-  output$table2 <- renderTable({
-    t(data.frame(table()$arma_orders))
-  })
-  output$table3 <- renderUI({
-    kables(table()$coefficients)
-  })
-  output$table4 <- renderTable({
-    t(data.frame(table()$loglik))
-  })
-  output$table5 <- renderTable({
-    t(data.frame(table()$residuals_st_err))
-  })
+  # table <- reactive({
+  #   summary(x13_modele()$regarima)
+  # })
+  # output$table1 <- renderTable({
+  #   data.frame(table()$results_spec)
+  # })
+  # output$table2 <- renderTable({
+  #   t(data.frame(table()$arma_orders))
+  # })
+  # output$table3 <- renderUI({
+  #   kables(table()$coefficients)
+  # })
+  # output$table4 <- renderTable({
+  #   t(data.frame(table()$loglik))
+  # })
+  # output$table5 <- renderTable({
+  #   t(data.frame(table()$residuals_st_err))
+  # })
 }
 
 shinyApp(ui, server)
