@@ -12,7 +12,7 @@ penit_to_2ts <- function(str, year = 0){
     ALL <- mens_aggreg %>%
       filter(year(dt_mois) >= year) %>%
       group_by(dt_mois) %>%
-      summarise(detenus = sum(detenus), condamnes = sum(condamnes, condamnes_prevenus), prevenus = sum(prevenus))
+      summarise(detenus = sum(detenus), condamnes = sum(condamnes_detenus, condamnes_prevenus), prevenus = sum(prevenus))
     return(list(ts(ALL$detenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12),
                 ts(ALL$condamnes, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12),
                 ts(ALL$prevenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12)
@@ -141,9 +141,23 @@ mod_to_plot <- function(model, t){
 }
 
 sum_mod_plt <- function(list_mod, model, t){
-  l <- list()
-  for (i in seq(1, length(list_model))){
-    x13_model <- list_model[[i]]
+  x13_model <- model
+  ts_fcst <- x13_model$regarima$forecast
+  ts_s<- tail(x13_model$final$series[,1], t)
+  
+  
+  s <- start(ts_s)
+  s <- paste(s[1],s[2], "01", sep = "-")
+  sd <- as.Date(str_to_time(s)) #date de début
+  ld <- sd %m+% months(t + 23)
+  df1 <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA)
+  df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
+  df_mod <- df1 %>%
+    rbind(df2) %>%
+    mutate(date = seq(sd, ld, by = "month"))
+  df <- data.frame(matrix(0, nrow = 24 + t, ncol = 3))
+  for (i in seq(1, length(list_mod))){
+    x13_model <- list_mod[[i]]
     ts_fcst <- x13_model$regarima$forecast
     ts_s<- tail(x13_model$final$series[,1], t)
     
@@ -152,18 +166,18 @@ sum_mod_plt <- function(list_mod, model, t){
     s <- paste(s[1],s[2], "01", sep = "-")
     sd <- as.Date(str_to_time(s)) #date de début
     ld <- sd %m+% months(t + 23)
-    df <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA)
+    df1 <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA)
     df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
-    df <- df %>%
-      rbind(df2) %>%
-      mutate(date = seq(sd, ld, by = "month"))
-    l[[i]] <- df
+    df1 <- df1 %>%
+      rbind(df2) 
+     df <- df1 + df
   }
-  df <- rbind(l[[1]], l[[2]], l[[3]])
-  df$group <- rep(c("df1", "df2", "df3"), each = nrow(l[[1]]) )
+  df <- df %>%
+    mutate(date = seq(sd, ld, by = "month")) %>%
+    rbind(df_mod)
+  df$group <- rep(c("Condamnes plus prevenus", "Detenus"), each = nrow(df_mod) )
   # return(df)
   return(ggplot(data = df, aes(x = date, y = fcst, color = group)) +
-           geom_line() +
            geom_line() +
            geom_line() +
            labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
@@ -171,5 +185,4 @@ sum_mod_plt <- function(list_mod, model, t){
            theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
            geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2))
 }
-# str_to_df("ALL", 1)
 
