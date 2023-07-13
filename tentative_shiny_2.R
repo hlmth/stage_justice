@@ -3,31 +3,39 @@ library(ggplot2)
 library(knitr)
 source("function2.R")
 
+choix <- c("Condamnés/Détenus", "MA/Reste")
+mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
+last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
+etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$cd_etablissement %>% #liste des établissements ouvert le mois dernier
+  as.data.frame() 
+etab_ouvert <- rbind("ALL", etab_ouvert)
 
 ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
-      textInput(inputId = "num_etab", label = "Entrer le numéro d'établissement ou ALL pour avoir le population détenus agrégée", 
-                placeholder = "Numéro ou ALL", value = "ALL"),
+      selectInput("type", "Type de décomposition du nombre de détenus", choix),
+      conditionalPanel('input.type == "Condamnés/Détenus',
+      selectInput(inputId = "num_etab", label = "Choisir le numéro d'établissement ou ALL pour avoir le population détenus agrégée", etab_ouvert)),
       numericInput(inputId = "mois", label = "Nombre de mois avant aujourd'hui que l'on veut afficher avant le forecast", value = 1, min = 1)
+      
     ),
-    mainPanel(
-      plotOutput(outputId = "plot_detenus"),
-      plotOutput(outputId = "plot_condamnes"),
-      plotOutput(outputId = "plot_prevenus"),
-      tabsetPanel(
-        tabPanel("Forecast",
-                 h2("Prévisions du nombre de détenus décomposés en condamnés et prévenus"),
-                 tableOutput("tabledet")),
-        tabPanel("Model",
-                 h2("Modèle X13_Arima pour la série temporelle des détenus"),
-                 verbatimTextOutput("summary_det"),
-                 h2("Modèle X13_Arima pour la série temporelle des condamnés"),
-                 verbatimTextOutput("summary_cond"),
-                 h2("Modèle X13_Arima pour la série temporelle des prévenus"),
-                 verbatimTextOutput("summary_prev"))
+      mainPanel(
+        plotOutput(outputId = "plot_detenus"),
+        plotOutput(outputId = "plot_condamnes"),
+        plotOutput(outputId = "plot_prevenus"),
+        tabsetPanel(
+          tabPanel("Forecast",
+                   h2("Prévisions du nombre de détenus décomposés en condamnés et prévenus"),
+                   tableOutput("tabledet")),
+          tabPanel("Model",
+                   h2("Modèle X13_Arima pour la série temporelle des détenus"),
+                   verbatimTextOutput("summary_det"),
+                   h2("Modèle X13_Arima pour la série temporelle des condamnés"),
+                   verbatimTextOutput("summary_cond"),
+                   h2("Modèle X13_Arima pour la série temporelle des prévenus"),
+                   verbatimTextOutput("summary_prev"))
+        )
       )
-    )
   )
 )
 
@@ -51,7 +59,7 @@ server <- function(input, output) {
          x13(list_TS()[[3]], x13_outl()))
   })
   observe({
-    print(list_x13_modele()[[1]]$regarima$forecast[,2])
+    list_x13_modele()[[1]]$regarima$forecast[,2]
   })
   output$plot_detenus <- renderPlot({
     sum_mod_plt(list(list_x13_modele()[[2]],
@@ -86,39 +94,11 @@ server <- function(input, output) {
                                   as.numeric(ts_fcst3[,1]),
                                   as.numeric(ts_fcst3[,2])))
   })
-  # output$tablecond <- renderTable({
-  #   ts_fcst <- list_x13_modele()[[2]]$regarima$forecast
-  #   data.frame(date = format(seq(s(),ld(), by = 'month'), "%Y-%m-%d"),
-  #              forecast = sprintf("%.2f ± %.2f",
-  #                                 as.numeric(ts_fcst[,1]),
-  #                                 as.numeric(ts_fcst[,2])))
-  # })
-  # output$tableprev <- renderTable({
-  #   data.frame(date = format(seq(s(),ld(), by = 'month'), "%Y-%m-%d"),
-  #              forecast = sprintf("%.2f ± %.2f",
-  #                                 as.numeric(ts_fcst[,1]),
-  #                                 as.numeric(ts_fcst[,2])))
-  # })
   list_summary_mod <- reactive({
     list(summary(list_x13_modele()[[1]]$regarima),
          summary(list_x13_modele()[[2]]$regarima),
          summary(list_x13_modele()[[3]]$regarima))
   })
-  # output$table1 <- renderTable({
-  #   data.frame(table_mod()$results_spec)
-  # })
-  # output$table2 <- renderTable({
-  #   t(data.frame(table_mod()$arma_orders))
-  # })
-  # output$table3 <- renderTable({
-  #   data.frame(table_mod()$coefficients$arima)
-  # })
-  # output$table4 <- renderTable({
-  #   data.frame(table_mod()$coefficients$regression)
-  # })
-  # output$table5 <- renderTable({
-  #   t(data.frame(table_mod()$loglik))
-  # })
   output$summary_det <- renderPrint({
     print(list_summary_mod()[[1]])
   })
