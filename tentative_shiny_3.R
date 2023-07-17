@@ -1,0 +1,138 @@
+library(shiny)
+library(ggplot2)
+library(knitr)
+source("function2.R")
+
+choix <- c("Condamnés/Prévenus", "MA/Reste")
+mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
+last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
+etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$cd_etablissement %>% #liste des établissements ouvert le mois dernier
+  as.data.frame() 
+etab_ouvert <- rbind("ALL", etab_ouvert)
+
+ui <- fluidPage(
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("type", "Type de décomposition du nombre de détenus", choix),
+      conditionalPanel("input.type == 'Condamnés/Prévenus'",
+                       selectInput(inputId = "num_etab", label = "Choisir le numéro d'établissement ou ALL pour avoir le population détenus agrégée", etab_ouvert)),
+      numericInput(inputId = "mois", label = "Nombre de mois avant aujourd'hui que l'on veut afficher avant le forecast", value = 24, min = 1)
+      
+    ),
+    mainPanel(
+      tabsetPanel(
+        tabPanel("Graphiques",
+                 conditionalPanel("input.type == 'Condamnés/Prévenus'",
+                                  plotOutput(outputId = "plot_detenus"),
+                                  plotOutput(outputId = "plot_condamnes"),
+                                  plotOutput(outputId = "plot_prevenus")),
+                 conditionalPanel("input.type == 'MA/Reste'",
+                                  plotOutput(outputId = "plot_detenus_MA"),
+                                  plotOutput(outputId = "plot_MA"),
+                                  plotOutput(outputId = "plot_RESTE"))),
+        tabPanel("Forecast",
+                 conditionalPanel("input.type == 'Condamnés/Prévenus'",
+                                  h2("Prévisions du nombre de détenus décomposés en condamnés et prévenus")),
+                 conditionalPanel("input.type == 'MA/Reste'",
+                                  h2("Prévisions du nombre de détenus décomposés en détenus en maison d'arrêt 
+                                     et en détenus dans un autre type de quartier pénitentiaire")),
+                 tableOutput("tabledet")),
+        tabPanel("Model",
+                 h2("Modèle X13_Arima pour la série temporelle des détenus"),
+                 verbatimTextOutput("summary_det"),
+                 conditionalPanel("input.type == 'Condamnés/Prévenus'",
+                                  h2("Modèle X13_Arima pour la série temporelle des condamnés")),
+                 conditionalPanel("input.type == 'MA/Reste'",
+                                  h2("Modèle X13_Arima pour la série temporelle des détenus en maison d'arrêt")),
+                 verbatimTextOutput("summary_cond"),
+                 conditionalPanel("input.type == 'Condamnés/Prévenus'",
+                                  h2("Modèle X13_Arima pour la série temporelle des prévenus")),
+                 conditionalPanel("input.type == 'MA/Reste'",
+                                  h2("Modèle X13_Arima pour la série temporelle des détenus dans un autre type de quartier pénitentiaire")),
+                 verbatimTextOutput("summary_prev"))
+      )
+    )
+  )
+)
+
+
+
+
+server <- function(input, output){
+  observe({print("ok")})
+  list_TS <- reactive({if (input$type == 'Condamnés/Prévenus')
+    penit_to_2ts(input$num_etab, 2016, MA = FALSE) else
+      penit_to_2ts("ALL", 2016, MA = TRUE)
+  })
+  observe({print(list_TS()[[2]])})
+  date_outl <- reactive({
+    ts_to_outl(list_TS()[[1]])
+  })
+  x13_outl <- reactive({
+    x13_spec(spec = c("RSA5c"),
+             usrdef.outliersEnabled = TRUE,
+             usrdef.outliersType = c(rep("AO", 2),rep("TC", 12)),
+             usrdef.outliersDate = date_outl(),
+             transform.function = "Auto")
+  })
+  list_x13_modele <- reactive({
+    list(x13(list_TS()[[1]], x13_outl()), #detenus
+         x13(list_TS()[[2]], x13_outl()), 
+         x13(list_TS()[[3]], x13_outl()))
+  })
+  observe({
+    print(list_x13_modele()[[2]]$regarima$forecast[,1])
+  })
+  output$plot_detenus <- renderPlot({
+    sum_mod_plt(list(list_x13_modele()[[2]],
+                     list_x13_modele()[[3]]),
+                list_x13_modele()[[1]], input$mois)
+  })
+  
+  output$plot_condamnes <- renderPlot({
+    mod_to_plt(list_x13_modele()[[2]], input$mois)
+  })
+  output$plot_prevenus <- renderPlot({
+    mod_to_plt(list_x13_modele()[[3]], input$mois)
+  })
+  s <- reactive({
+    as.Date(str_to_time(paste(start(list_x13_modele()[[1]]$regarima$forecast)[1],
+                              start(list_x13_modele()[[1]]$regarima$forecast)[2], "01", sep = "-")))
+  })
+  ld <- reactive({
+    s() %m+% months(23)
+  })
+  output$tabledet <- renderTable({
+    ts_fcst1 <- list_x13_modele()[[1]]$regarima$forecast
+    ts_fcst2 <- list_x13_modele()[[2]]$regarima$forecast
+    ts_fcst3 <- list_x13_modele()[[3]]$regarima$forecast
+    data.frame(date = format(seq(s(),ld(), by = 'month'), "%Y-%m-%d"),
+               forecast_detenus = sprintf("%.2f ± %.2f",
+                                          as.numeric(ts_fcst1[,1]),
+                                          as.numeric(ts_fcst1[,2])),
+               forecast_condamnes = sprintf("%.2f ± %.2f",
+                                            as.numeric(ts_fcst2[,1]),
+                                            as.numeric(ts_fcst2[,2])),
+               forecast_prevenus = sprintf("%.2f ± %.2f",
+                                           as.numeric(ts_fcst3[,1]),
+                                           as.numeric(ts_fcst3[,2])))
+  })
+  list_summary_mod <- reactive({
+    list(summary(list_x13_modele()[[1]]$regarima),
+         summary(list_x13_modele()[[2]]$regarima),
+         summary(list_x13_modele()[[3]]$regarima))
+  })
+  output$summary_det <- renderPrint({
+    print(list_summary_mod()[[1]])
+  })
+  output$summary_cond <- renderPrint({
+    print(list_summary_mod()[[2]])
+  })
+  output$summary_prev <- renderPrint({
+    print(list_summary_mod()[[3]])
+  })
+}
+
+
+
+shinyApp(ui, server)

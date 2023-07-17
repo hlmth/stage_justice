@@ -6,9 +6,9 @@ library(RJDemetra)
 
 
 
-penit_to_2ts <- function(str, year = 0){
+penit_to_2ts <- function(str, year = 0, MA = FALSE){
   mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
-  if (str == "ALL") {
+  if (str == "ALL" & MA == FALSE) {
     ALL <- mens_aggreg %>%
       filter(year(dt_mois) >= year) %>%
       group_by(dt_mois) %>%
@@ -17,6 +17,22 @@ penit_to_2ts <- function(str, year = 0){
                 ts(ALL$condamnes, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12),
                 ts(ALL$prevenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12)
                 ))
+  }
+  if (str == 'ALL' & MA == TRUE){
+    MA <- mens_aggreg %>% 
+      mutate(pivot = ifelse(quartier_etab == "MA/QMA", "detenus_MA", "detenus_reste")) %>% 
+      select(dt_mois, detenus, pivot) %>% 
+      group_by(dt_mois, pivot) %>%
+      mutate(detenus = sum(detenus)) %>%
+      ungroup() %>%
+      distinct() %>%
+      pivot_wider(names_from = pivot, values_from = detenus) %>%
+      mutate(detenus = detenus_MA + detenus_reste) %>% 
+      filter(year(dt_mois) >= year)
+    return(list(ts(MA$detenus, start = c(year(min(MA$dt_mois)), month(min(MA$dt_mois))), frequency = 12),
+                ts(MA$detenus_MA, start = c(year(min(MA$dt_mois)), month(min(MA$dt_mois))), frequency = 12),
+                ts(MA$detenus_reste, start = c(year(min(MA$dt_mois)), month(min(MA$dt_mois))), frequency = 12)
+    ))
   }
   last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
   etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$cd_etablissement #liste des établissements ouvert le mois dernier
@@ -57,7 +73,7 @@ penit_to_2ts <- function(str, year = 0){
 }
 
 
-list_ts <- penit_to_2ts("ALL", 2016)
+
 
 str_to_time <- function(str){
   date_str <- ifelse(str_length(str)==9 ,str_replace(str,"-","-0"),str)
@@ -74,13 +90,6 @@ ts_to_outl <- function(ts){
   list_outl <- which(date %in% COVID_seq)
   return(date[list_outl])
   }
-
-ts_to_outl(list_ts[[1]])
-time(list_ts[[2]])
-ts <- penit_to_ts("ALL", 2016)
-ts_to_outl(ts)
-length(list_ts)
-
 
 
 list_mod_to_plt <- function(list_model, t){
@@ -118,7 +127,7 @@ list_mod_to_plt <- function(list_model, t){
            geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2))
 }
 
-mod_to_plot <- function(model, t){
+mod_to_plt <- function(model, t){
   # TS <- penit_to_ts(str, 2016)
   # x13_model <- ts_to_X13(TS)
   x13_model <- model

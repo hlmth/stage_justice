@@ -14,7 +14,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectInput("type", "Type de décomposition du nombre de détenus", choix),
-      conditionalPanel('input.type == "Condamnés/Détenus',
+      conditionalPanel("input.type == 'Condamnés/Détenus'",
       selectInput(inputId = "num_etab", label = "Choisir le numéro d'établissement ou ALL pour avoir le population détenus agrégée", etab_ouvert)),
       numericInput(inputId = "mois", label = "Nombre de mois avant aujourd'hui que l'on veut afficher avant le forecast", value = 1, min = 1)
       
