@@ -1,14 +1,12 @@
 library(haven)
 library(dplyr)
 library(utils)
-library(forecast)
-library(urca)
 library(readxl)
 library(tidyverse)
 library(ggplot2) #pour le graphe
 library(knitr)
 library(RJDemetra)
-
+source("function.R")
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 
 MA <- mens_aggreg %>% filter(quartier_etab == "MA/QMA") %>% group_by(dt_mois) %>%  summarise(detenus_MA = sum(detenus))
@@ -32,13 +30,27 @@ ts_model <- tramoseats(tsma) # TRAMO-SEATS method
 plot(X13_model, type_chart = "sa-trend")
 plot(X13_model)
 
+
 # S-I ratio
 plot(X13_model$decomposition)
 layout(matrix(1:6, 3, 2));plot(X13_model$regarima, ask = FALSE);layout(matrix(1))
 dev.off()
-summary(X13_model$regarima)
-X13_model$regarima$forecast
 
+summary(X13_model$regarima)
+X13_model$decomposition$specification
+summary(X13_model$final)
+X13_model$diagnostics$variance_decomposition
+
+
+b <- summary(X13_model$regarima)
+ba<- b$results_spec
+bb<- b$arma_orders
+bc<- b$coefficients
+bd<- b$loglik
+be<- b$residuals_st_err
+data.frame(ba)
+X13_model$regarima$forecast
+class(bc)
 # create a vector of year and month strings
 year_month <- c("2005.000", "2005.083", "2005.167", "2005.250", "2005.333", "2005.417", "2005.500", "2005.583", "2005.667", "2005.750", "2005.833", "2005.917")
 
