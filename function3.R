@@ -93,9 +93,6 @@ ts_to_outl <- function(ts){
 
 
 list_mod_to_plt <- function(list_model, t){
-  # TS <- penit_to_ts(str, 2016)
-  # x13_model <- ts_to_X13(TS)
-  # return(x13_model$regarima$forecast)
   l <- list()
   for (i in seq(1, length(list_model))){
     x13_model <- list_model[[i]]
@@ -116,7 +113,6 @@ list_mod_to_plt <- function(list_model, t){
   }
   df <- rbind(l[[1]], l[[2]], l[[3]])
   df$group <- rep(c("df1", "df2", "df3"), each = nrow(l[[1]]) )
-  # return(df)
   return(ggplot(data = df, aes(x = date, y = fcst, color = group)) +
            geom_line() +
            geom_line() +
@@ -144,40 +140,34 @@ mod_to_df <- function(model, t){
     rbind(df2) %>%
     mutate(date = seq(s, ld, by = "month"))
   return(df)
-  # return(ggplot(data = df, aes(x = date, y = fcst)) +
-  #          geom_line() +
-  #          labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
-  #          scale_x_continuous(breaks = seq(sd, ld, by = "3 month"), labels = seq(sd, ld, by = "3 month")) +
-  #          theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
-  #          geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2))
 }
 
-sum_mod_plt <- function(list_mod, model, t){
+sum_mod_plt <- function(list_mod, model, t, nom_1, nom_2){
   x13_model <- model
   ts_fcst <- x13_model$regarima$forecast
   ts_s<- tail(x13_model$final$series[,1], t)
   
-  
-  s <- start(ts_s)
+  s <- start(ts_fcst)
   s <- paste(s[1],s[2], "01", sep = "-")
-  sd <- as.Date(str_to_time(s)) #date de début
-  ld <- sd %m+% months(t + 23)
+  s <- as.Date(str_to_time(s))
+  s <- s %m-% months(t)
+  ld <- s %m+% months(t + 23)
   df1 <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA)
   df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
   df_mod <- df1 %>%
     rbind(df2) %>%
-    mutate(date = seq(sd, ld, by = "month"))
+    mutate(date = seq(s, ld, by = "month"))
   df <- data.frame(matrix(0, nrow = 24 + t, ncol = 3))
   for (i in seq(1, length(list_mod))){
     x13_model <- list_mod[[i]]
     ts_fcst <- x13_model$regarima$forecast
     ts_s<- tail(x13_model$final$series[,1], t)
     
-    
-    s <- start(ts_s)
+    s <- start(ts_fcst)
     s <- paste(s[1],s[2], "01", sep = "-")
-    sd <- as.Date(str_to_time(s)) #date de début
-    ld <- sd %m+% months(t + 23)
+    s <- as.Date(str_to_time(s))
+    s <- s %m-% months(t)
+    ld <- s %m+% months(t + 23)
     df1 <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA)
     df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = NA)
     df1 <- df1 %>%
@@ -185,16 +175,9 @@ sum_mod_plt <- function(list_mod, model, t){
     df <- df1 + df
   }
   df <- df %>%
-    mutate(date = seq(sd, ld, by = "month")) %>%
+    mutate(date = seq(s, ld, by = "month")) %>%
     rbind(df_mod)
-  df$group <- rep(c("Moyenne des Forecasts condamnés plus prévenus", "Détenus"), each = nrow(df_mod) )
-  # return(df)
-  return(ggplot(data = df, aes(x = date, y = fcst, color = group)) +
-           geom_line() +
-           geom_line() +
-           labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
-           scale_x_continuous(breaks = seq(sd, ld, by = "3 month"), labels = seq(sd, ld, by = "3 month")) +
-           theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
-           geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2))
+  df$group <- rep(c(nom_1, nom_2), each = nrow(df_mod) )
+  return(df)
 }
 

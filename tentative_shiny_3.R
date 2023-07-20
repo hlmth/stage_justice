@@ -12,6 +12,7 @@ etab_ouvert <- rbind("ALL", etab_ouvert)
 
 ui <- fluidPage(
   sidebarLayout(
+    ################################### Sidebar #####################################
     sidebarPanel(
       selectInput("type", "Type de décomposition du nombre de détenus", choix),
       conditionalPanel("input.type == 'Condamnés/Prévenus'",
@@ -19,6 +20,8 @@ ui <- fluidPage(
       numericInput(inputId = "mois", label = "Nombre de mois avant aujourd'hui que l'on veut afficher avant le forecast", value = 24, min = 1)
       
     ),
+    ################################### Main Panel #####################################
+    
     mainPanel(
       tabsetPanel(
         tabPanel("Graphiques",
@@ -52,6 +55,7 @@ ui <- fluidPage(
                  verbatimTextOutput("summary_prev"))
       )
     )
+    #####
   )
 )
 
@@ -59,12 +63,12 @@ ui <- fluidPage(
 
 
 server <- function(input, output){
+  ################################### Obtention TS et modèles #####################################
   observe({print("ok")})
   list_TS <- reactive({if (input$type == 'Condamnés/Prévenus')
     penit_to_2ts(input$num_etab, 2016, MA = FALSE) else
       penit_to_2ts("ALL", 2016, MA = TRUE)
   })
-  observe({print(list_TS()[[2]])})
   date_outl <- reactive({
     ts_to_outl(list_TS()[[1]])
   })
@@ -84,10 +88,21 @@ server <- function(input, output){
   observe({
     print(list_x13_modele()[[2]]$regarima$forecast[,1])
   })
+  ################################### Graphiques #####################################
+  ### Détenus/Condamnés ###
   output$plot_detenus <- renderPlot({
-    sum_mod_plt(list(list_x13_modele()[[2]],
-                     list_x13_modele()[[3]]),
-                list_x13_modele()[[1]], input$mois)
+    df <- sum_mod_plt(list(list_x13_modele()[[2]],
+                           list_x13_modele()[[3]]),
+                      list_x13_modele()[[1]], input$mois,
+                      "Moyenne des Forecasts condamnés plus prévenus",
+                      "Détenus")
+    ggplot(data = df, aes(x = date, y = fcst, color = group)) +
+      geom_line() +
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
   })
   
   output$plot_condamnes <- renderPlot({
@@ -108,6 +123,43 @@ server <- function(input, output){
       scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +
       theme(axis.text.x = element_text(angle = 305, vjust = 0.5))
   })
+  ### MA/Reste ###
+  output$plot_detenus_MA <- renderPlot({
+    df <- sum_mod_plt(list(list_x13_modele()[[2]],
+                           list_x13_modele()[[3]]),
+                      list_x13_modele()[[1]], input$mois,
+                      "Moyenne des Forecasts détenus en maison d'arrêt plus
+                      détenus dans un autre type de quartier pénitentiaire",
+                      "Détenus")
+    ggplot(data = df, aes(x = date, y = fcst, color = group)) +
+      geom_line() +
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
+  })
+  
+  output$plot_MA <- renderPlot({
+    df <- mod_to_df(list_x13_modele()[[2]], input$mois)
+    ggplot(data = df, aes(x = date, y = fcst)) +
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de détenus en maison d'arrêt") +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
+  })
+  output$plot_RESTE <- renderPlot({
+    df <- mod_to_df(list_x13_modele()[[3]], input$mois)
+    ggplot(data = df, aes(x = date, y = fcst)) + 
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de détenus dans un autre type de quartier pénitentiaire") +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2) +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5))
+  })
+  ################################### Forecast#####################################
+  
   s <- reactive({
     as.Date(str_to_time(paste(start(list_x13_modele()[[1]]$regarima$forecast)[1],
                               start(list_x13_modele()[[1]]$regarima$forecast)[2], "01", sep = "-")))
@@ -130,6 +182,8 @@ server <- function(input, output){
                                            as.numeric(ts_fcst3[,1]),
                                            as.numeric(ts_fcst3[,2])))
   })
+  ################################### Summary des modèles #####################################
+  
   list_summary_mod <- reactive({
     list(summary(list_x13_modele()[[1]]$regarima),
          summary(list_x13_modele()[[2]]$regarima),
@@ -144,6 +198,7 @@ server <- function(input, output){
   output$summary_prev <- renderPrint({
     print(list_summary_mod()[[3]])
   })
+  
 }
 
 
