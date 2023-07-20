@@ -1,7 +1,7 @@
 library(shiny)
 library(ggplot2)
 library(knitr)
-source("function3.R")
+source("function.R")
 
 choix <- c("Condamnés/Prévenus", "MA/Reste")
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
