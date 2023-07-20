@@ -1,14 +1,12 @@
 library(haven)
 library(dplyr)
 library(utils)
-library(forecast)
-library(urca)
 library(readxl)
 library(tidyverse)
 library(ggplot2) #pour le graphe
 library(knitr)
 library(RJDemetra)
-
+source("function.R")
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 
 MA <- mens_aggreg %>% filter(quartier_etab == "MA/QMA") %>% group_by(dt_mois) %>%  summarise(detenus_MA = sum(detenus))
@@ -32,12 +30,17 @@ ts_model <- tramoseats(tsma) # TRAMO-SEATS method
 plot(X13_model, type_chart = "sa-trend")
 plot(X13_model)
 
+
 # S-I ratio
 plot(X13_model$decomposition)
 layout(matrix(1:6, 3, 2));plot(X13_model$regarima, ask = FALSE);layout(matrix(1))
 dev.off()
-a <- X13_model$regarima
-kable(a, format = 'html')
+
+summary(X13_model$regarima)
+X13_model$decomposition$specification
+summary(X13_model$final)
+X13_model$diagnostics$variance_decomposition
+
 
 b <- summary(X13_model$regarima)
 ba<- b$results_spec

@@ -1,7 +1,7 @@
 library(shiny)
 library(ggplot2)
 library(knitr)
-source("function2.R")
+source("function3.R")
 
 choix <- c("Condamnés/Prévenus", "MA/Reste")
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
@@ -73,7 +73,8 @@ server <- function(input, output){
              usrdef.outliersEnabled = TRUE,
              usrdef.outliersType = c(rep("AO", 2),rep("TC", 12)),
              usrdef.outliersDate = date_outl(),
-             transform.function = "Auto")
+             transform.function = "Auto",
+             easter.enabled = FALSE)
   })
   list_x13_modele <- reactive({
     list(x13(list_TS()[[1]], x13_outl()), #detenus
@@ -90,10 +91,22 @@ server <- function(input, output){
   })
   
   output$plot_condamnes <- renderPlot({
-    mod_to_plt(list_x13_modele()[[2]], input$mois)
+    df <- mod_to_df(list_x13_modele()[[2]], input$mois)
+    ggplot(data = df, aes(x = date, y = fcst)) +
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de condamnés") +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
   })
   output$plot_prevenus <- renderPlot({
-    mod_to_plt(list_x13_modele()[[3]], input$mois)
+    df <- mod_to_df(list_x13_modele()[[3]], input$mois)
+    ggplot(data = df, aes(x = date, y = fcst)) + 
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de prévenus") +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2) +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5))
   })
   s <- reactive({
     as.Date(str_to_time(paste(start(list_x13_modele()[[1]]$regarima$forecast)[1],
