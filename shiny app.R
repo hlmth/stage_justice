@@ -6,7 +6,7 @@ source("function.R")
 choix <- c("Condamnés/Prévenus", "MA/Reste")
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
-etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$cd_etablissement %>% #liste des établissements ouvert le mois dernier
+etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$lc_etab %>% #liste des établissements ouvert le mois dernier
   as.data.frame() 
 etab_ouvert <- rbind("ALL", etab_ouvert)
 
@@ -16,7 +16,7 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput("type", "Type de décomposition du nombre de détenus", choix),
       conditionalPanel("input.type == 'Condamnés/Prévenus'",
-                       selectInput(inputId = "num_etab", label = "Choisir le numéro d'établissement ou ALL pour avoir le population détenus agrégée", etab_ouvert)),
+                       selectInput(inputId = "num_etab", label = "Choisir l'établissement ou ALL pour avoir le population détenus agrégée", etab_ouvert)),
       numericInput(inputId = "mois", label = "Nombre de mois avant aujourd'hui que l'on veut afficher avant le forecast", value = 24, min = 1)
       
     ),

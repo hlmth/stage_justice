@@ -35,17 +35,17 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
     ))
   }
   last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
-  etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$cd_etablissement #liste des établissements ouvert le mois dernier
+  etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$lc_etab #liste des établissements ouvert le mois dernier
   d <- mens_aggreg %>%
-    filter(cd_etablissement %in% etab_ouvert)%>%
+    filter(lc_etab %in% etab_ouvert)%>%
     distinct(cd_etablissement, lc_etab, type_etab, quartier_etab) %>%
-    group_by(cd_etablissement) %>%
+    group_by(lc_etab) %>%
     mutate(nb_quartier = n_distinct(quartier_etab)) 
   d <- unique(d[-4][-3])
   if (str %in% etab_ouvert){
-    if (filter(d, cd_etablissement == str)$nb_quartier == 1){
+    if (filter(d, lc_etab == str)$nb_quartier == 1){
       TS <- mens_aggreg %>%
-        filter(cd_etablissement == str & year(dt_mois)>= year) %>%
+        filter(lc_etab == str & year(dt_mois)>= year) %>%
         group_by(dt_mois) %>%
         summarise(detenus = sum(detenus), condamnes = sum(condamnes_detenus, condamnes_prevenus), prevenus = sum(prevenus))
       return(list(ts(TS$detenus, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12),
@@ -54,10 +54,10 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
       ))
     } else {
       l_ts <- list()
-      quartiers <- unique(filter(mens_aggreg, cd_etablissement == str)$quartier_etab)
+      quartiers <- unique(filter(mens_aggreg, lc_etab == str)$quartier_etab)
       for (qua in quartiers) {
         TS <- mens_aggreg %>%
-          filter(cd_etablissement == str & quartier_etab == qua & year(dt_mois) >= year) %>%
+          filter(lc_etab == str & quartier_etab == qua & year(dt_mois) >= year) %>%
           group_by(dt_mois) %>%
           summarise(detenus = sum(detenus), condamnes = sum(condamnes_detenus, condamnes_prevenus), prevenus = sum(prevenus))
         l_ts[[qua]] <- list(ts(TS$detenus, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12),
