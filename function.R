@@ -7,7 +7,8 @@ library(RJDemetra)
 
 
 penit_to_2ts <- function(str, year = 0, MA = FALSE){
-  mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
+  # mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
+  DISP <- c("DISP BORDEAUX", "DISP DIJON", "DISP LILLE", "DISP LYON", "DISP MARSEILLE", "DISP PARIS", "DISP RENNES", "DISP STRASBOURG", "DISP TOULOUSE", "MOM", "DSPOM")
   if (str == "ALL" & MA == FALSE) {
     ALL <- mens_aggreg %>%
       filter(year(dt_mois) >= year) %>%
@@ -15,8 +16,7 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
       summarise(detenus = sum(detenus), condamnes = sum(condamnes_detenus, condamnes_prevenus), prevenus = sum(prevenus))
     return(list(ts(ALL$detenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12),
                 ts(ALL$condamnes, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12),
-                ts(ALL$prevenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12)
-    ))
+                ts(ALL$prevenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12)))
   }
   if (str == 'ALL' & MA == TRUE){
     MA <- mens_aggreg %>% 
@@ -31,8 +31,32 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
       filter(year(dt_mois) >= year)
     return(list(ts(MA$detenus, start = c(year(min(MA$dt_mois)), month(min(MA$dt_mois))), frequency = 12),
                 ts(MA$detenus_MA, start = c(year(min(MA$dt_mois)), month(min(MA$dt_mois))), frequency = 12),
-                ts(MA$detenus_reste, start = c(year(min(MA$dt_mois)), month(min(MA$dt_mois))), frequency = 12)
-    ))
+                ts(MA$detenus_reste, start = c(year(min(MA$dt_mois)), month(min(MA$dt_mois))), frequency = 12)))
+  }
+  if (str %in% DISP & MA == FALSE){
+    DISP <- mens_aggreg %>%
+      filter(year(dt_mois) >= year & lc_disp == str) %>%
+      group_by(dt_mois) %>%
+      summarise(detenus = sum(detenus), condamnes = sum(condamnes_detenus, condamnes_prevenus), prevenus = sum(prevenus))
+    return(list(ts(DISP$detenus, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$condamnes, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$prevenus, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12)))
+  }
+  if (str %in% DISP & MA == TRUE){
+    DISP <- mens_aggreg %>% 
+      mutate(pivot = ifelse(quartier_etab == "MA/QMA", "detenus_MA", "detenus_reste")) %>% 
+      select(dt_mois, detenus, pivot, lc_disp) %>% 
+      filter(year(dt_mois) >= year & lc_disp == str) %>% 
+      group_by(dt_mois, pivot) %>%
+      mutate(detenus = sum(detenus)) %>%
+      ungroup() %>%
+      distinct() %>%
+      pivot_wider(names_from = pivot, values_from = detenus) %>%
+      mutate(detenus = detenus_MA + detenus_reste) 
+
+    return(list(ts(DISP$detenus, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$detenus_MA, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$detenus_reste, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12)))
   }
   last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
   etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$lc_etab #liste des établissements ouvert le mois dernier
@@ -50,8 +74,7 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
         summarise(detenus = sum(detenus), condamnes = sum(condamnes_detenus, condamnes_prevenus), prevenus = sum(prevenus))
       return(list(ts(TS$detenus, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12),
                   ts(TS$condamnes, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12),
-                  ts(TS$prevenus, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12)
-      ))
+                  ts(TS$prevenus, start = c(year(min(TS$dt_mois)), month(min(TS$dt_mois))), frequency = 12)))
     } else {
       l_ts <- list()
       quartiers <- unique(filter(mens_aggreg, lc_etab == str)$quartier_etab)
@@ -73,7 +96,7 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
 }
 
 
-
+penit_to_2ts("DISP BORDEAUX", MA = TRUE)
 
 str_to_time <- function(str){
   date_str <- ifelse(str_length(str)==9 ,str_replace(str,"-","-0"),str)
