@@ -20,7 +20,7 @@ ui <- fluidPage(
       conditionalPanel("input.type == 'Condamnés/Prévenus'",
                        selectInput(inputId = "num_etab", label = "Choisir l'établissement ou ALL pour avoir le population détenus agrégée", etab_ouvert)),
       conditionalPanel("input.type == 'MA/Reste'",
-                       selectInput(inputId = "num_etab", label = "Choisir l'établissement ou ALL pour avoir le population détenus agrégée", DISP)),
+                       selectInput(inputId = "num_etab_MA", label = "Choisir l'établissement ou ALL pour avoir le population détenus agrégée", DISP)),
       numericInput(inputId = "mois", label = "Nombre de mois avant aujourd'hui que l'on veut afficher avant le forecast", value = 24, min = 1)
       
     ),
@@ -69,13 +69,12 @@ ui <- fluidPage(
 server <- function(input, output){
   ################################### Obtention TS et modèles #####################################
   observe({print("ok")})
-  list_TS <- reactive({if (input$type == 'Condamnés/Prévenus')
+  list_TS_CP <- reactive({if (input$type == 'Condamnés/Prévenus')
     penit_to_2ts(input$num_etab, 2016, MA = FALSE) 
   })
   list_TS <- reactive({if (input$type == 'MA/Reste')
-  penit_to_2ts(input$num_etab, 2016, MA = TRUE) else list_TS()
+    penit_to_2ts(input$num_etab_MA, 2016, MA = TRUE) else list_TS_CP()
   })
-
   date_outl <- reactive({
     ts_to_outl(list_TS()[[1]])
   })
