@@ -10,7 +10,7 @@ mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 penit_to_2ts <- function(str, year = 0, MA = FALSE){
   # mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
   DISP <- c("DISP BORDEAUX", "DISP DIJON", "DISP LILLE", "DISP LYON", "DISP MARSEILLE", "DISP PARIS", "DISP RENNES", "DISP STRASBOURG", "DISP TOULOUSE", "MOM", "DSPOM")
-  if (str == "ALL" & MA == FALSE) {
+  if (str == "France" & MA == FALSE) {
     ALL <- mens_aggreg %>%
       filter(year(dt_mois) >= year) %>%
       group_by(dt_mois) %>%
@@ -19,7 +19,7 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
                 ts(ALL$condamnes, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12),
                 ts(ALL$prevenus, start = c(year(min(ALL$dt_mois)), month(min(ALL$dt_mois))), frequency = 12)))
   }
-  if (str == 'ALL' & MA == TRUE){
+  if (str == 'France' & MA == TRUE){
     MA <- mens_aggreg %>% 
       mutate(pivot = ifelse(quartier_etab == "MA/QMA", "detenus_MA", "detenus_reste")) %>% 
       select(dt_mois, detenus, pivot) %>% 
@@ -174,7 +174,7 @@ sum_mod_plt <- function(list_mod, model, t, nom_1, nom_2){
   s <- s %m-% months(t)
   ld <- s %m+% months(t + 23)
   df1 <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA)
-  df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
+  df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = NA)
   df_mod <- df1 %>%
     rbind(df2) %>%
     mutate(date = seq(s, ld, by = "month"))
@@ -190,7 +190,7 @@ sum_mod_plt <- function(list_mod, model, t, nom_1, nom_2){
     s <- s %m-% months(t)
     ld <- s %m+% months(t + 23)
     df1 <- data.frame(date = seq(1, t), fcst = as.numeric(ts_s), stderr_fcst = NA)
-    df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = NA)
+    df2 <- data.frame(date = seq(t + 1, t + 24), fcst = as.numeric(ts_fcst[,1]), stderr_fcst = as.numeric(ts_fcst[,2]))
     df1 <- df1 %>%
       rbind(df2) 
     df <- df1 + df
