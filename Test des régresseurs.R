@@ -167,7 +167,7 @@ TC <- function(alpha, t , t_0){
   }
 }
 
-s <- seq(-10, 50)
+s <- seq(-10, 50) #ensemble des périodes temporelles
 
 l <- NULL
 for (i in c(1:length(s))){
@@ -175,21 +175,26 @@ for (i in c(1:length(s))){
 }
 plot(y = l, x = s, type = "l")
 lines(y = rep(0.1, length(s)), x = s, type = "l")
-
+l
 list_alpha <- seq(0.7, 1, by = 0.01)
 
 l1 <- NULL
 for (i in c(1: length(list_alpha))){
   l <- NULL
-  for (j in c(1:length(s))){
+  for (j in c(1:length(s))){ # on crée la liste des valeurs de TC pour t appartenant à s et pour un certain alpha appartentnat à list_alpha
     l <- c(l,TC(list_alpha[[i]], s[[j]], 0))
   }
-  l1 <- c(l1, which.min(abs(l - 0.1)) - 11)
+  l1 <- c(l1, which.min(abs(l - 0.1)) - 11) #on regarde en combien de période la fonction TC << 1 (on le traduit par TC < 0.1
   
 }
 
-m <- data.frame(alpha = list_alpha, nbr_de_période = l1 )
+periode <- data.frame(alpha = list_alpha, nbr_de_période = l1 )
+View(periode)
 
-
+#D'après la table période, on remarque que l'alpha le plus pértinent pour réprésenter l'éffet d'un temporary
+#change sur 13 périodes est alpha = 0.84, on trouve un alpha au alpha usuel de 0.7 qui lui représente un effet
+#de temporary change significatif sur 7 période. On peut donc remplacer les outliers que l'on a implémenter pour
+#l'instant par un seul outliers TC en période 194 (2020-04-01) ou un outliers A0 en période 194 et un TC avec
+#un alpha = 0.83 en 195 (2020-05-01), le plus bas du pic atteint pendant la période COVID. 
 
 
