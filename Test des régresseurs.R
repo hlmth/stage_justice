@@ -116,7 +116,7 @@ summary(myreg3)
 summary(myreg4)
 summary(myreg5)
 
-m <- data.frame(row.names = c("detenus", "condamnes", "prevenus", "MA", "Autres")) 
+tabl_reg <- data.frame(row.names = c("detenus", "condamnes", "prevenus", "MA", "Autres")) 
 for (i in c(1:length(list_spec))){
   myreg1 <- row.names(regarima(detenus, list_spec[[i]])$regression.coefficients)
   df_det <- data.frame(type = "detenus", spec = i, myreg1) %>% 
@@ -145,9 +145,9 @@ for (i in c(1:length(list_spec))){
     ungroup()
   df_ad <- rbind(df_det, df_cond, df_prev, df_MA, df_autres)
   # row.names(df_ad) <- c("detenus", "condamnes", "prevenus", "MA", "Autres")
-  m <- rbind(m, df_ad)
+  tabl_reg <- rbind(tabl_reg, df_ad)
 }
-#Au regard de m, la non significativité des workings days et la seule significativité des trading days pour 
+#Au regard de tabl_reg, la non significativité des workings days et la seule significativité des trading days pour 
 #la série des condamnés (répondant à des condamnations ayant majoritairement lieu en semaine)
 #et la série Autres (ne répondant à rien puisque agrégat de séries ayant surement une saisonnaité propre mais
 #trop faible en stock pour être décomposée) ne permettent pas de prouver l'utilité de régresseurs spécifiques 
@@ -166,35 +166,138 @@ TC <- function(alpha, t , t_0){
     return(alpha^(t-t_0))
   }
 }
+temps
+s <- seq(-10, 100) #ensemble des périodes temporelles
 
-s <- seq(-10, 50) #ensemble des périodes temporelles
-
-l <- NULL
-for (i in c(1:length(s))){
-  l <- c(l,TC(0.7, s[[i]], 0))
-}
-plot(y = l, x = s, type = "l")
-lines(y = rep(0.1, length(s)), x = s, type = "l")
-l
-list_alpha <- seq(0.7, 1, by = 0.01)
-
-l1 <- NULL
+list_alpha <- seq(0.7, 1, by = 0.01) #on créé la liste des alphas pour lesquels on va chercher le nbr de période
+l1 <- NULL ; l2 <- NULL ; l4 <- NULL
 for (i in c(1: length(list_alpha))){
   l <- NULL
   for (j in c(1:length(s))){ # on crée la liste des valeurs de TC pour t appartenant à s et pour un certain alpha appartentnat à list_alpha
     l <- c(l,TC(list_alpha[[i]], s[[j]], 0))
   }
-  l1 <- c(l1, which.min(abs(l - 0.1)) - 11) #on regarde en combien de période la fonction TC << 1 (on le traduit par TC < 0.1
-  
+  l1 <- c(l1, which.min(abs(l - 0.3)) - 11) #on regarde en combien de période la fonction TC << 1 (on le traduit par TC < 0.3)
+  var1 <- NULL
+  for (j in c(1:length(temps))){
+    var1 <- c(var1,TC(list_alpha[[i]], temps[[j]], 52))
+  }
+  var1 <- ts(var1, start = start(detenus), frequency = 12)
+  l4 <- c(l4, var1[[53]])
+  X13_spec_TC1 <- x13_spec(spec = "RSA5c",
+                           usrdef.varEnabled = TRUE,
+                           usrdef.var = var1,
+                           usrdef.varType = "Irregular",
+                           transform.function = "Auto",
+                           easter.enabled = FALSE,
+                           outlier.enabled = FALSE )
+  X13_TC1 <- x13(detenus, X13_spec_TC1)
+  l2 <- c(l2, round(as.numeric(X13_TC1$regarima$loglik[5])))
 }
 
-periode <- data.frame(alpha = list_alpha, nbr_de_période = l1 )
-View(periode)
+tabl_prd <- data.frame(alpha = list_alpha, nbr_de_période = l1 , aicc = l2)
 
 #D'après la table période, on remarque que l'alpha le plus pértinent pour réprésenter l'éffet d'un temporary
-#change sur 13 périodes est alpha = 0.84, on trouve un alpha au alpha usuel de 0.7 qui lui représente un effet
+#change sur 13 périodes est alpha = 0.91, on trouve que pour l'alpha usuel de 0.7 représente un effet
 #de temporary change significatif sur 7 période. On peut donc remplacer les outliers que l'on a implémenter pour
-#l'instant par un seul outliers TC en période 194 (2020-04-01) ou un outliers A0 en période 194 et un TC avec
-#un alpha = 0.83 en 195 (2020-05-01), le plus bas du pic atteint pendant la période COVID. 
+#l'instant par un seul outliers TC en période 194 ou 52 (2020-04-01) ou un outliers A0 en période 194 ou 52 et un TC avec
+#un alpha = 0.9 en 195 ou 53 (2020-05-01), le plus bas du pic atteint pendant la période COVID. 
 
+detenus <- penit_to_2ts("France", year = 2016)[[1]]
+condamnes <- penit_to_2ts("France", year = 2016)[[2]]
+prevenus <- penit_to_2ts("France", year = 2016)[[3]]
+MA <- penit_to_2ts("France", year = 2016, MA = TRUE)[[2]]
+Autres <- penit_to_2ts("France", year = 2016, MA = TRUE)[[3]]
 
+list_TS <- list(detenus, condamnes, prevenus, MA, Autres)
+
+date_outl <- ts_to_outl(detenus) #On créé la spécification utilisée jusqu'ici
+X13_spec_ini <- x13_spec(spec = c("RSA5c"),
+                         usrdef.outliersEnabled = TRUE,
+                         usrdef.outliersType = c(rep("AO", 2),rep("TC", 12)),
+                         usrdef.outliersDate = date_outl,
+                         transform.function = "Auto",
+                         easter.enabled = FALSE)
+
+temps <- seq(1, length(detenus)) #ensemble des périodes temporelles
+
+var1 <- NULL
+for (i in c(1:length(temps))){
+  var1 <- c(var1,TC(0.91, temps[[i]], 52))
+}
+var1 <- ts(var1, start = start(detenus), frequency = 12) #On créé le régresseur TC 0.91 avec la valeur du alpha déterminée précédement
+
+var2 <- NULL
+for (i in c(1:length(temps))){
+  var2 <- c(var2,TC(0.9, temps[[i]], 53))
+}
+var2 <- ts(var2, start = start(detenus), frequency = 12) #On créé le régresseur TC avec la valeur du alpha déterminée précédement
+                                                         #qui sera complété avec un outliers AO
+
+X13_spec_TC <- x13_spec(spec = "RSA5c",
+                         usrdef.varEnabled = TRUE,
+                         usrdef.var = var1,
+                         usrdef.varType = "Irregular",
+                         transform.function = "Auto",
+                         easter.enabled = FALSE,
+                         outlier.enabled = FALSE )
+
+X13_spec_TCAO <- x13_spec(spec = "RSA5c",
+                          tradingdays.option = "None",
+                           usrdef.outliersEnabled = TRUE,
+                           usrdef.outliersType = "AO",
+                           usrdef.outliersDate = "2020-04-01",
+                           usrdef.varEnabled = TRUE,
+                           usrdef.var = var2,
+                           usrdef.varType = "Irregular",
+                           transform.function = "Auto",
+                           easter.enabled = FALSE,
+                           outlier.enabled = FALSE)
+f <- function(t, t_0,t_1){  #Au vu des courbes des séries temporelles étudiées, on essaye un régresseur linéaire
+  if (t<t_0 |t>t_1 ){
+    return(0)
+  }
+  else {
+    return(abs(t - t_1)/(t_1-t_0))
+  }
+}
+var3 <- NULL
+for (i in c(1:length(temps))){
+  var3 <- c(var3,f(temps[[i]], 52, 73))
+}
+var3 <- ts(var3, start = start(detenus), frequency = 12) 
+plot(var3)
+X13_spec_lin <- x13_spec(spec = "RSA5c",
+                         usrdef.varEnabled = TRUE,
+                         usrdef.var = var3,
+                         usrdef.varType = "Irregular",
+                         transform.function = "Auto",
+                         easter.enabled = FALSE,
+                         outlier.enabled = FALSE )
+
+tabl_aicc <- data.frame(row.names = c("detenus", "condamnes", "prevenus", "MA", "Autres"))
+tabl_aicc[["aicc sans TC"]] <- rep(NA, 5)
+tabl_aicc[["aicc avec TC O.91"]] <- rep(NA, 5)
+tabl_aicc[["aicc avec TC 0.9 et AO"]] <- rep(NA, 5)
+tabl_aicc[["aicc avec reg linéaire"]] <- rep(NA, 5)
+tabl_aicc[["aicc auto"]] <- rep(NA, 5)
+for (i in seq(1:length(list_TS))){
+  X13_ini <- x13(list_TS[[i]], X13_spec_ini)
+  X13_TC <- x13(list_TS[[i]], X13_spec_TC)
+  X13_TCAO <- x13(list_TS[[i]], X13_spec_TCAO)
+  X13_lin <- x13(list_TS[[i]], X13_spec_lin)
+  X13_Auto <- x13(list_TS[[i]], spec = "RSA5c")
+  a <- round(as.numeric(X13_ini$regarima$loglik[5]))
+  b <- round(as.numeric(X13_TC$regarima$loglik[5]))
+  c <- round(as.numeric(X13_TCAO$regarima$loglik[5]))
+  d <- round(as.numeric(X13_lin$regarima$loglik[5]))
+  e <- round(as.numeric(X13_Auto$regarima$loglik[5]))
+  tabl_aicc[i,] <- c(a, b, c, d, e)}
+
+plot(detenus)
+lines((var3)*-13000 +71000)
+
+#Tous les types de régresseurs testés ici sont significatif sur l'ensemble des séries au moins 
+#au seuil de 1%. 
+#Au vue de la tabl_aicc le modèle avec régresseur linéaire n'a jamais l'aicc le plus faible des 3
+#modèles testés ici. Par ailleurs, aucune des deux représentations du covid ne semble être meilleure 
+#que l'autre le minimum entre l'un et l'autre dépendant de la série. 
