@@ -1,0 +1,231 @@
+---
+title: ' '
+output:
+  html_document:
+    theme: cosmo
+    highlight: monochrome
+    css: R_mesure_Marianne.css
+    df_print: kable
+  geometry: margin=0.1cm
+  pdf_document: default
+---
+
+```{r librairies, include=FALSE}
+source("function.R")
+library(kableExtra)
+library(xtable)
+```
+
+# Analyse du nombre de personnes déténus en France à la fin du mois de juillet 2023
+
+Nous retrouvons dans le tableau suivant les résultats principaux
+
+```{r table et ts, include=FALSE}
+mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
+
+detenus <- penit_to_2ts("France", year = 2016)[[1]]
+condamnes <- penit_to_2ts("France", year = 2016)[[2]]
+prevenus <- penit_to_2ts("France", year = 2016)[[3]]
+MA <- penit_to_2ts("France", year = 2016, MA = TRUE)[[2]]
+Autres <- penit_to_2ts("France", year = 2016, MA = TRUE)[[3]]
+
+DISP_BORDEAUX <- penit_to_2ts("DISP BORDEAUX", year = 2016)[[1]]
+DISP_DIJON <- penit_to_2ts("DISP DIJON", year = 2016)[[1]]
+DISP_LILLE <- penit_to_2ts("DISP LILLE", year = 2016)[[1]]
+DISP_LYON <- penit_to_2ts("DISP LYON", year = 2016)[[1]]
+DISP_MARSEILLE <- penit_to_2ts("DISP MARSEILLE", year = 2016)[[1]]
+DISP_PARIS <- penit_to_2ts("DISP PARIS", year = 2016)[[1]]
+DISP_RENNES <- penit_to_2ts("DISP RENNES", year = 2016)[[1]]
+DISP_STRASBOURG <- penit_to_2ts("DISP STRASBOURG", year = 2016)[[1]]
+DISP_TOULOUSE <- penit_to_2ts("DISP TOULOUSE", year = 2016)[[1]]
+MOM <- penit_to_2ts("MOM", year = 2016)[[1]]
+DSPOM <- penit_to_2ts("DSPOM", year = 2016)[[1]]
+
+
+```
+
+```{r <-spec, include=FALSE}
+#Ici on précise la spécification qui sera utilisé pour tous les modèles X13. 
+
+#On utilise ici la spécification dans laquel on modèlise le COVID comme un outliers TC en avril 2020 avec un alpha de 0.91.
+temps <- seq(1, length(detenus)) #ensemble des périodes temporelles
+
+TC <- function(alpha, t , t_0){ #Fonction transitory change
+  if (t<t_0){
+    return(0)
+  }
+  else {
+    return(alpha^(t-t_0))
+  }
+}
+f <- function(t, t_0,t_1){  #Au vu des courbes des séries temporelles étudiées, on essaye un régresseur linéaire
+  if (t<t_0 |t>t_1 ){
+    return(0)
+  }
+  else {
+    return(abs(t - t_1)/(t_1-t_0))
+  }
+}
+var1 <- NULL
+for (i in c(1:length(temps))){
+  var1 <- c(var1,TC(0.91, temps[[i]], 52))
+}
+var1 <- ts(var1, start = start(detenus), frequency = 12) #On créé le régresseur TC avec alpha = 0.91
+
+var2 <- NULL
+for (i in c(1:length(temps))){
+  var2 <- c(var2,TC(0.9, temps[[i]], 53))
+}
+var2 <- ts(var2, start = start(detenus), frequency = 12) #On créé le régresseur TC avec la valeur du alpha déterminée précédement qui sera complété avec un outliers AO
+
+var3 <- NULL
+for (i in c(1:length(temps))){
+  var3 <- c(var3,f(temps[[i]], 52, 80)) #On considère le régresseur entre avril 2020 et début 2022.
+}
+var3 <- ts(var3, start = start(detenus), frequency = 12) #On créé le régresseur linéaire.
+
+spec_TC <- x13_spec(spec = "RSA5c", 
+                         usrdef.varEnabled = TRUE,
+                         usrdef.var = var1,
+                         usrdef.varType = "Irregular",
+                         transform.function = "Auto",
+                         easter.enabled = FALSE,
+                         outlier.enabled = FALSE )
+
+spec_TCAO <- x13_spec(spec = "RSA5c",
+                          tradingdays.option = "None",
+                           usrdef.outliersEnabled = TRUE,
+                           usrdef.outliersType = "AO",
+                           usrdef.outliersDate = "2020-04-01",
+                           usrdef.varEnabled = TRUE,
+                           usrdef.var = var2,
+                           usrdef.varType = "Irregular",
+                           transform.function = "Auto",
+                           easter.enabled = FALSE,
+                           outlier.enabled = FALSE)
+
+spec_lin <- x13_spec(spec = "RSA5c",
+                         usrdef.varEnabled = TRUE,
+                         usrdef.var = var3,
+                         usrdef.varType = "Irregular",
+                         transform.function = "Auto",
+                         easter.enabled = FALSE,
+                         outlier.enabled = FALSE )
+
+```
+
+```{r fonctions utiles, echo=FALSE}
+table_obs_pre <- function(ts, spec = spec_TC){
+  ts_1 <- ts(ts[1:(length(ts)-1)], frequency = 12) #On crée les listes en enlevant 1, 2 ou 3 mois pour comparer les derniers résultats observés et les prévisions des 3 derniers mois.
+  ts_2 <- ts(ts[1:(length(ts)-2)], frequency = 12)
+  ts_3 <- ts(ts[1:(length(ts)-3)], frequency = 12)
+  modeles <- list(x13(ts, spec), #On crée les modèles pour chacunes des séries.
+                      x13(ts_1, spec),
+                      x13(ts_2, spec),
+                      x13(ts_3, spec))
+  result <- cbind(c(round(tail(ts_2, 1)), round(modeles[[4]]$regarima$forecast[[1]])),
+                      c(round(tail(ts_1, 1)), round(modeles[[3]]$regarima$forecast[[1]])),
+                      c(round(tail(ts, 1)), round(modeles[[2]]$regarima$forecast[[1]])),
+                      c(NA, round(modeles[[1]]$regarima$forecast[[1]]))) #On met les valeurs par couple (observés/prévu au mois précédent)
+return(result)}
+mise_en_table <- function(ts, table){
+  obs <- round(tail(ts, 4))
+  table <- rbind(table, 
+                  diff(table), 
+                  round((obs-table[1,])/obs*1000, 3),
+                  round((obs-table[2,])/obs*1000, 3))
+  colnames(table) <- c("Juin", "Juillet", "Août", "Septembre")
+  rownames(table) <- c("Observé", "Prévision", "Ecart", "Variation (x1000)", "Variation prévue (x1000)")
+  return(table)
+}
+
+
+```
+
+## Détenus
+
+On s'intéresse ici au stock aggrégé de détenus en France. On peut commencer par observer l'évolution du nombre de détenus en France lors des 3 derniers et comparer ces observations aux prévisions faites par les modèles X13.
+
+```{r détenus, echo=FALSE}
+kable(mise_en_table(detenus, table_obs_pre(detenus))) %>% 
+      kable_styling("striped", full_width = F)
+```
+
+Les résulats sont plutot bon et bien que non tout à fait exacts, les prévisions on le même sens de variations que les chiffres observés. Pour être plus précis sur ces chiffres, on a pensé à décomposr la série détenus de différentes manières pour prendre en compte les saisonnalités cachés dans le chiffre agréggé du nombre de détenus.
+
+## Première décomposition : Condamnés/Prévenus
+
+```{r condamnés, echo=FALSE}
+kable(mise_en_table(condamnes, table_obs_pre(condamnes))) %>% 
+      kable_styling("striped", full_width = F)
+```
+
+```{r prévenus, echo=FALSE}
+kable(mise_en_table(prevenus, table_obs_pre(prevenus))) %>% 
+      kable_styling("striped", full_width = F)
+```
+
+```{r det cond plus prev, echo=FALSE}
+det1 <-  table_obs_pre(condamnes) + table_obs_pre(prevenus)
+
+kable(mise_en_table(detenus, det1)) %>% 
+      kable_styling("striped", full_width = F)
+
+x13det <- x13(detenus, spec_TC)
+x13cond <- x13(condamnes, spec_TC)
+x13prev <- x13(prevenus, spec_TC)
+
+df1 <- sum_mod_plt(list(x13cond, x13prev),
+                  x13det, 30,
+                  "Moyenne des Forecasts condamnés plus prévenus",
+                  "Détenus")
+ggplot(data = df1, aes(x = date, y = fcst, color = group)) +
+      geom_line() +
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
+```
+
+## Deuxième décomposition : MA/Autres
+
+```{r MA, echo=FALSE}
+kable(mise_en_table(MA, table_obs_pre(MA))) %>% 
+      kable_styling("striped", full_width = F)
+```
+
+```{r Autres, echo=FALSE}
+kable(mise_en_table(Autres, table_obs_pre(Autres))) %>% 
+      kable_styling("striped", full_width = F)
+```
+
+```{r det MA plus Autres, echo=FALSE}
+det2 <-  table_obs_pre(MA) + table_obs_pre(Autres)
+
+kable(mise_en_table(detenus, det2)) %>% 
+      kable_styling("striped", full_width = F)
+
+x13det <- x13(detenus, spec_TC)
+x13MA <- x13(MA, spec_TC)
+x13Autres <- x13(Autres, spec_TC)
+
+df2 <- sum_mod_plt(list(x13MA, x13Autres),
+                  x13det, 30,
+                  "Moyenne des Forecasts condamnés plus prévenus",
+                  "Détenus")
+ggplot(data = df2, aes(x = date, y = fcst, color = group)) +
+      geom_line() +
+      geom_line() +
+      labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
+      scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
+```
+
+## Troisième décomposition par DISP
+
+```{r BORDEAUX, echo=FALSE}
+kable(mise_en_table(DISP_BORDEAUX, table_obs_pre(DISP_BORDEAUX))) %>% 
+      kable_styling("striped", full_width = F)
+```

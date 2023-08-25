@@ -4,7 +4,6 @@ library(utils)
 library(tidyverse)
 library(RJDemetra)
 
-mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 
 
 penit_to_2ts <- function(str, year = 0, MA = FALSE){
