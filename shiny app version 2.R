@@ -9,7 +9,7 @@ mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 last_month <- max(mens_aggreg$dt_mois) #dernier mois apparaissant dans mens_aggreg
 etab_ouvert <- filter(mens_aggreg, dt_mois == last_month)$lc_etab %>% #liste des établissements ouvert le mois dernier
   as.data.frame() 
-DISP <- c("France", "DISP BORDEAUX", "DISP DIJON", "DISP LILLE", "DISP LYON", "DISP MARSEILLE", "DISP PARIS", "DISP RENNES", "DISP STRASBOURG", "DISP TOULOUSE", "MOM", "DSPOM") %>%
+DISP <- c("France", "DISP BORDEAUX", "DISP DIJON", "DISP LILLE", "DISP LYON", "DISP MARSEILLE", "DISP PARIS", "DISP RENNES", "DISP STRASBOURG", "DISP TOULOUSE", "DSPOM") %>%
   as.data.frame()
 etab_ouvert <- rbind(DISP, etab_ouvert)
 
@@ -137,6 +137,7 @@ server <- function(input, output){
                       "Moyenne des Forecasts détenus en maison d'arrêt plus
                       détenus dans un autre type de quartier pénitentiaire",
                       "Détenus")
+    View(df)
     ggplot(data = df, aes(x = date, y = fcst, color = group)) +
       geom_line() +
       geom_line() +

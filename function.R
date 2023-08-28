@@ -8,7 +8,7 @@ library(RJDemetra)
 
 penit_to_2ts <- function(str, year = 0, MA = FALSE){
   # mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
-  DISP <- c("DISP BORDEAUX", "DISP DIJON", "DISP LILLE", "DISP LYON", "DISP MARSEILLE", "DISP PARIS", "DISP RENNES", "DISP STRASBOURG", "DISP TOULOUSE", "MOM", "DSPOM")
+  DISP <- c("DISP BORDEAUX", "DISP DIJON", "DISP LILLE", "DISP LYON", "DISP MARSEILLE", "DISP PARIS", "DISP RENNES", "DISP STRASBOURG", "DISP TOULOUSE")
   if (str == "France" & MA == FALSE) {
     ALL <- mens_aggreg %>%
       filter(year(dt_mois) >= year) %>%
@@ -54,6 +54,31 @@ penit_to_2ts <- function(str, year = 0, MA = FALSE){
       pivot_wider(names_from = pivot, values_from = detenus) %>%
       mutate(detenus = detenus_MA + detenus_reste) 
 
+    return(list(ts(DISP$detenus, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$detenus_MA, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$detenus_reste, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12)))
+  }
+  if (str == "DSPOM" & MA == FALSE){
+    DISP <- mens_aggreg %>%
+      filter(year(dt_mois) >= year & (lc_disp == "MOM"| lc_disp == "DSPOM")) %>%
+      group_by(dt_mois) %>%
+      summarise(detenus = sum(detenus), condamnes = sum(condamnes_detenus, condamnes_prevenus), prevenus = sum(prevenus))
+    return(list(ts(DISP$detenus, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$condamnes, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
+                ts(DISP$prevenus, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12)))
+  }
+  if (str == "DSPOM" & MA == TRUE){
+    DISP <- mens_aggreg %>% 
+      mutate(pivot = ifelse(quartier_etab == "MA/QMA", "detenus_MA", "detenus_reste")) %>% 
+      select(dt_mois, detenus, pivot, lc_disp) %>% 
+      filter(year(dt_mois) >= year & (lc_disp == "MOM"| lc_disp == "DSPOM")) %>% 
+      group_by(dt_mois, pivot) %>%
+      mutate(detenus = sum(detenus)) %>%
+      ungroup() %>%
+      distinct() %>%
+      pivot_wider(names_from = pivot, values_from = detenus) %>%
+      mutate(detenus = detenus_MA + detenus_reste) 
+    
     return(list(ts(DISP$detenus, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
                 ts(DISP$detenus_MA, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12),
                 ts(DISP$detenus_reste, start = c(year(min(DISP$dt_mois)), month(min(DISP$dt_mois))), frequency = 12)))

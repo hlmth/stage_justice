@@ -38,7 +38,6 @@ DISP_PARIS <- penit_to_2ts("DISP PARIS", year = 2016)[[1]]
 DISP_RENNES <- penit_to_2ts("DISP RENNES", year = 2016)[[1]]
 DISP_STRASBOURG <- penit_to_2ts("DISP STRASBOURG", year = 2016)[[1]]
 DISP_TOULOUSE <- penit_to_2ts("DISP TOULOUSE", year = 2016)[[1]]
-MOM <- penit_to_2ts("MOM", year = 2016)[[1]]
 DSPOM <- penit_to_2ts("DSPOM", year = 2016)[[1]]
 
 
@@ -127,7 +126,7 @@ table_obs_pre <- function(ts, spec = spec_TC){
                       c(round(tail(ts_1, 1)), round(modeles[[3]]$regarima$forecast[[1]])),
                       c(round(tail(ts, 1)), round(modeles[[2]]$regarima$forecast[[1]])),
                       c(NA, round(modeles[[1]]$regarima$forecast[[1]]))) #On met les valeurs par couple (observés/prévu au mois précédent)
-return(result)}
+return(list(modeles[[1]], result))} #On récupère le premier modèle créer à partir de la série comprenant toutes les données observées ainsi qu'un data frame comprenant les données observées sur les 3 derniers mois et les prévisions de chacun de ces mois à partir du modèle fait sur les données s'arretant au mois d'avant (on prévoit donc aussi le mois suivant). 
 mise_en_table <- function(ts, table){
   obs <- round(tail(ts, 4))
   table <- rbind(table, 
@@ -147,7 +146,7 @@ mise_en_table <- function(ts, table){
 On s'intéresse ici au stock aggrégé de détenus en France. On peut commencer par observer l'évolution du nombre de détenus en France lors des 3 derniers et comparer ces observations aux prévisions faites par les modèles X13.
 
 ```{r détenus, echo=FALSE}
-kable(mise_en_table(detenus, table_obs_pre(detenus))) %>% 
+kable(mise_en_table(detenus, table_obs_pre(detenus)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
@@ -156,17 +155,17 @@ Les résulats sont plutot bon et bien que non tout à fait exacts, les prévisio
 ## Première décomposition : Condamnés/Prévenus
 
 ```{r condamnés, echo=FALSE}
-kable(mise_en_table(condamnes, table_obs_pre(condamnes))) %>% 
+kable(mise_en_table(condamnes, table_obs_pre(condamnes)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
 ```{r prévenus, echo=FALSE}
-kable(mise_en_table(prevenus, table_obs_pre(prevenus))) %>% 
+kable(mise_en_table(prevenus, table_obs_pre(prevenus)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
 ```{r det cond plus prev, echo=FALSE}
-det1 <-  table_obs_pre(condamnes) + table_obs_pre(prevenus)
+det1 <-  table_obs_pre(condamnes)[[2]] + table_obs_pre(prevenus)[[2]]
 
 kable(mise_en_table(detenus, det1)) %>% 
       kable_styling("striped", full_width = F)
@@ -191,17 +190,17 @@ ggplot(data = df1, aes(x = date, y = fcst, color = group)) +
 ## Deuxième décomposition : MA/Autres
 
 ```{r MA, echo=FALSE}
-kable(mise_en_table(MA, table_obs_pre(MA))) %>% 
+kable(mise_en_table(MA, table_obs_pre(MA)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
 ```{r Autres, echo=FALSE}
-kable(mise_en_table(Autres, table_obs_pre(Autres))) %>% 
+kable(mise_en_table(Autres, table_obs_pre(Autres)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
 ```{r det MA plus Autres, echo=FALSE}
-det2 <-  table_obs_pre(MA) + table_obs_pre(Autres)
+det2 <-  table_obs_pre(MA)[[2]] + table_obs_pre(Autres)[[2]]
 
 kable(mise_en_table(detenus, det2)) %>% 
       kable_styling("striped", full_width = F)
@@ -225,7 +224,60 @@ ggplot(data = df2, aes(x = date, y = fcst, color = group)) +
 
 ## Troisième décomposition par DISP
 
-```{r BORDEAUX, echo=FALSE}
-kable(mise_en_table(DISP_BORDEAUX, table_obs_pre(DISP_BORDEAUX))) %>% 
+```{r det decomposition disp, echo=FALSE}
+det3 <- table_obs_pre(DISP_BORDEAUX)[[2]] +
+  table_obs_pre(DISP_DIJON)[[2]] +
+  table_obs_pre(DISP_LILLE)[[2]] +
+  table_obs_pre(DISP_LYON)[[2]] +
+  table_obs_pre(DISP_MARSEILLE)[[2]] +
+  table_obs_pre(DISP_PARIS)[[2]] +
+  table_obs_pre(DISP_RENNES)[[2]] +
+  table_obs_pre(DISP_STRASBOURG)[[2]] +
+  table_obs_pre(DISP_TOULOUSE)[[2]] +
+  table_obs_pre(DSPOM)[[2]]
+  
+kable(mise_en_table(detenus, det3)) %>% 
       kable_styling("striped", full_width = F)
+
 ```
+```{r graph, echo=FALSE}
+
+pre <- 
+
+
+obs<- c(tail(table_obs_pre(detenus)[[1]]$final$series[,1], 3), rep(NA,24))
+
+pre <- c(rep(NA,3), table_obs_pre(detenus)[[1]]$regarima$forecast)[1:27]
+pre_cond_prev <- c(rep(NA,3), table_obs_pre(condamnes)[[1]]$regarima$forecast +
+           table_obs_pre(prevenus)[[1]]$regarima$forecast)[1:27]
+pre_MA_Autres <- c(rep(NA,3), table_obs_pre(MA)[[1]]$regarima$forecast +
+           table_obs_pre(Autres)[[1]]$regarima$forecast)[1:27]
+pre_DISP <- c(rep(NA,3), table_obs_pre(DISP_BORDEAUX)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_DIJON)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_LILLE)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_LYON)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_MARSEILLE)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_PARIS)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_RENNES)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_STRASBOURG)[[1]]$regarima$forecast +
+           table_obs_pre(DISP_TOULOUSE)[[1]]$regarima$forecast +
+           table_obs_pre(DSPOM)[[1]]$regarima$forecast)[1:27]
+
+s <- max(mens_aggreg$dt_mois)
+s <- s %m-% months(2)
+ld <- s %m+% months(2 + 24)
+date <- seq(s, ld, by = "month")
+df <-data.frame(date,
+            obs,
+            pre,
+            pre_cond_prev,
+            pre_MA_Autres,
+            pre_DISP)
+
+colnames(df) <- c("Date", "Observations", "Prévision détenus", "Prévisions décomposition Condamnés/Prévenus",
+                  "Prévisions MA/Autres", "Prévisions DISP")
+df
+
+esquisse::esquisser()
+```
+
