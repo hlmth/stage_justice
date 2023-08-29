@@ -18,8 +18,6 @@ library(xtable)
 
 # Analyse du nombre de personnes déténus en France à la fin du mois de juillet 2023
 
-Nous retrouvons dans le tableau suivant les résultats principaux
-
 ```{r table et ts, include=FALSE}
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 
@@ -143,86 +141,119 @@ mise_en_table <- function(ts, table){
 
 ## Détenus
 
-On s'intéresse ici au stock aggrégé de détenus en France. On peut commencer par observer l'évolution du nombre de détenus en France lors des 3 derniers et comparer ces observations aux prévisions faites par les modèles X13.
+On s'intéresse ici au stock aggrégé de détenus en France. On peut commencer par observer l'évolution du nombre de détenus en France lors des 3 derniers mois et comparer ces observations aux prévisions faites par les modèles X13.
 
 ```{r détenus, echo=FALSE}
 kable(mise_en_table(detenus, table_obs_pre(detenus)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
-Les résulats sont plutot bon et bien que non tout à fait exacts, les prévisions on le même sens de variations que les chiffres observés. Pour être plus précis sur ces chiffres, on a pensé à décomposr la série détenus de différentes manières pour prendre en compte les saisonnalités cachés dans le chiffre agréggé du nombre de détenus.
+Les résulats sont plutot bons, en effet, les prévisions ont le même sens de variation que les chiffres observés. Pour être plus précis sur ces chiffres, on a pensé à décomposer la série détenus de différentes manières pour prendre en compte les saisonnalités propres de certaines composantes du nombre de détenus.
 
 ## Première décomposition : Condamnés/Prévenus
+
+Une première décomposition de nombre de détenus peut-être la décomposition en condamnés et en prévenus le nombre de détenus totals étant la somme de ces deux séries. La répartition des effectifs est à peu près de trois quarts de condamnés et un quarts de prévenus.
+
+On retrouve ici les résultats d'un modèle X13 sur la série temporelle des individus condamnés.
 
 ```{r condamnés, echo=FALSE}
 kable(mise_en_table(condamnes, table_obs_pre(condamnes)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
+On observe maintenant les résulats d'un modèle X13 sur la série des prévenus.
+
 ```{r prévenus, echo=FALSE}
 kable(mise_en_table(prevenus, table_obs_pre(prevenus)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
-```{r det cond plus prev, echo=FALSE}
+En sommant les résultats des deux modèles, on obtient de nouvelles prévisions pour la série des détenus.
+
+```{r det cond plus prev table, echo=FALSE}
 det1 <-  table_obs_pre(condamnes)[[2]] + table_obs_pre(prevenus)[[2]]
 
 kable(mise_en_table(detenus, det1)) %>% 
       kable_styling("striped", full_width = F)
 
+```
+
+```{r det cond plus prev graph, include = FALSE}
 x13det <- x13(detenus, spec_TC)
 x13cond <- x13(condamnes, spec_TC)
 x13prev <- x13(prevenus, spec_TC)
 
 df1 <- sum_mod_plt(list(x13cond, x13prev),
-                  x13det, 30,
-                  "Moyenne des Forecasts condamnés plus prévenus",
-                  "Détenus")
-ggplot(data = df1, aes(x = date, y = fcst, color = group)) +
-      geom_line() +
+                  x13det, 10,
+                  "a",
+                  "b") %>% 
+  filter(group == "a") %>% 
+  select(date, fcst, stderr_fcst)
+
+ggplot(data = df1, aes(x = date, y = fcst)) +
       geom_line() +
       labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
       scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
       theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
-      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2) +
+  # theme_light() +
+  theme(legend.position = "bottom")
+
 ```
 
 ## Deuxième décomposition : MA/Autres
+
+Une seconde décomposition est une décompostion par quartier pénitentiaire. Un majorité de détenus est incarcérée en maison d'arrêt, on peut donc décomposer en une série représentant les individus détenus en maison d'arrêt et une série représentant les individus incarcérés dans un autre type de quartier pénitentiaire. La répartition est encore une fois de trois quarts pour les individus incarcérs en maison d'arrêt contre un quart pour les autres détenus.
+
+On retrouve ici les résultats d'un modèle X13 sur la série temporelle des individus incarcérés en maison d'arrêt.
 
 ```{r MA, echo=FALSE}
 kable(mise_en_table(MA, table_obs_pre(MA)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
+On observe maintenant les résulats d'un modèle X13 sur la série des détenus incarcérés dans un autre type de quartier pénitentiaire.
+
 ```{r Autres, echo=FALSE}
 kable(mise_en_table(Autres, table_obs_pre(Autres)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
-```{r det MA plus Autres, echo=FALSE}
+En sommant les résultats des deux modèles, on obtient de nouvelles prévisions pour la série des détenus.
+
+```{r det MA plus Autres table, echo=FALSE}
 det2 <-  table_obs_pre(MA)[[2]] + table_obs_pre(Autres)[[2]]
 
 kable(mise_en_table(detenus, det2)) %>% 
       kable_styling("striped", full_width = F)
 
-x13det <- x13(detenus, spec_TC)
+
+```
+
+```{r det MA plus Autres graph, include=FALSE}
 x13MA <- x13(MA, spec_TC)
 x13Autres <- x13(Autres, spec_TC)
 
 df2 <- sum_mod_plt(list(x13MA, x13Autres),
-                  x13det, 30,
-                  "Moyenne des Forecasts condamnés plus prévenus",
-                  "Détenus")
-ggplot(data = df2, aes(x = date, y = fcst, color = group)) +
-      geom_line() +
+                  x13det, 10,
+                  "a",
+                  "b") %>% 
+  filter(group == "a") %>% 
+  select(date, fcst, stderr_fcst)
+
+ggplot(data = df2, aes(x = date, y = fcst)) +
       geom_line() +
       labs(x = "Evolution mensuelle", y = "Nombre de détenus") +
       scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
       theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
-      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2)
+      geom_ribbon( aes (ymin = fcst - stderr_fcst, ymax = fcst + stderr_fcst), alpha = 0.2) +
+  theme(legend.position = "bottom")
+  
 ```
 
 ## Troisième décomposition par DISP
+
+Enfin une dernière décomposition permettant de prendre en compte des séries ayant des saisonnalités propre est la décompostion par Direction Interrégionale. Par soucis de clarté, on affiche uniquement les résultats agrégés et non les résultats de chaques modèles pour les dix DI. 
 
 ```{r det decomposition disp, echo=FALSE}
 det3 <- table_obs_pre(DISP_BORDEAUX)[[2]] +
@@ -240,19 +271,16 @@ kable(mise_en_table(detenus, det3)) %>%
       kable_styling("striped", full_width = F)
 
 ```
+## Conclusion
+
 ```{r graph, echo=FALSE}
 
-pre <- 
-
-
-obs<- c(tail(table_obs_pre(detenus)[[1]]$final$series[,1], 3), rep(NA,24))
-
-pre <- c(rep(NA,3), table_obs_pre(detenus)[[1]]$regarima$forecast)[1:27]
-pre_cond_prev <- c(rep(NA,3), table_obs_pre(condamnes)[[1]]$regarima$forecast +
-           table_obs_pre(prevenus)[[1]]$regarima$forecast)[1:27]
-pre_MA_Autres <- c(rep(NA,3), table_obs_pre(MA)[[1]]$regarima$forecast +
-           table_obs_pre(Autres)[[1]]$regarima$forecast)[1:27]
-pre_DISP <- c(rep(NA,3), table_obs_pre(DISP_BORDEAUX)[[1]]$regarima$forecast +
+pre <- c(table_obs_pre(detenus)[[1]]$regarima$forecast)[1:24]
+pre_cond_prev <- c( table_obs_pre(condamnes)[[1]]$regarima$forecast +
+           table_obs_pre(prevenus)[[1]]$regarima$forecast)[1:24]
+pre_MA_Autres <- c(table_obs_pre(MA)[[1]]$regarima$forecast +
+           table_obs_pre(Autres)[[1]]$regarima$forecast)[1:24]
+pre_DISP <- c( table_obs_pre(DISP_BORDEAUX)[[1]]$regarima$forecast +
            table_obs_pre(DISP_DIJON)[[1]]$regarima$forecast +
            table_obs_pre(DISP_LILLE)[[1]]$regarima$forecast +
            table_obs_pre(DISP_LYON)[[1]]$regarima$forecast +
@@ -261,23 +289,36 @@ pre_DISP <- c(rep(NA,3), table_obs_pre(DISP_BORDEAUX)[[1]]$regarima$forecast +
            table_obs_pre(DISP_RENNES)[[1]]$regarima$forecast +
            table_obs_pre(DISP_STRASBOURG)[[1]]$regarima$forecast +
            table_obs_pre(DISP_TOULOUSE)[[1]]$regarima$forecast +
-           table_obs_pre(DSPOM)[[1]]$regarima$forecast)[1:27]
+           table_obs_pre(DSPOM)[[1]]$regarima$forecast)[1:24]
 
 s <- max(mens_aggreg$dt_mois)
-s <- s %m-% months(2)
-ld <- s %m+% months(2 + 24)
+s <- s %m+% months(1)
+ld <- s %m+% months(23)
 date <- seq(s, ld, by = "month")
-df <-data.frame(date,
-            obs,
+df <-data.frame(rep(date, 4),
+            donnees = c(
             pre,
             pre_cond_prev,
             pre_MA_Autres,
-            pre_DISP)
+            pre_DISP),
+            group = c(
+                      rep("Prévision détenus", 24),
+                      rep("Prévisions décomposition Condamnés/Prévenus", 24),
+                      rep("Prévisions MA/Autres", 24),
+                      rep("Prévisions DISP", 24)))
 
-colnames(df) <- c("Date", "Observations", "Prévision détenus", "Prévisions décomposition Condamnés/Prévenus",
-                  "Prévisions MA/Autres", "Prévisions DISP")
-df
+ggplot(df) +
+  aes(x = rep.date..4., y = donnees, colour = group) +
+  geom_line() +
+  # scale_color_hue(direction = 1) +
+   scale_x_date(date_labels = "%Y-%m-%d", date_breaks = "4 month") +      
+      theme(axis.text.x = element_text(angle = 305, vjust = 0.5)) +
+  labs(
+    x = "Evolution mensuelle",
+    y = "Prévisions du nombre de détenus",
+    color = "Décomposition"
+  ) +
+  # theme_light() +
+  theme(legend.position = "bottom")
 
-esquisse::esquisser()
 ```
-
