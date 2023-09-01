@@ -19,9 +19,9 @@ library(xtable)
 # Analyse du nombre de personnes détenues en France à la fin du mois d'août 2023
 
 ```{r table et ts, include=FALSE}
-mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
+mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat") #on récupère la base (prendre la plus récente)
 
-detenus <- penit_to_2ts("France", year = 2016)[[1]]
+detenus <- penit_to_2ts("France", year = 2016)[[1]] #on récupère les séries temporelles que l'on va étudier
 condamnes <- penit_to_2ts("France", year = 2016)[[2]]
 prevenus <- penit_to_2ts("France", year = 2016)[[3]]
 MA <- penit_to_2ts("France", year = 2016, MA = TRUE)[[2]]
@@ -42,9 +42,9 @@ DSPOM <- penit_to_2ts("DSPOM", year = 2016)[[1]]
 ```
 
 ```{r spec, include=FALSE}
-#Ici on précise la spécification qui sera utilisé pour tous les modèles X13. 
+#On code les différentes spécifications qui utilisable pour tous les modèles X13 qui modèlisent le COVID. 
 
-#On utilise ici la spécification dans laquel on modèlise le COVID comme un outliers TC en avril 2020 avec un alpha de 0.91.
+#On utilise ici la 
 temps <- seq(1, length(detenus)) #ensemble des périodes temporelles
 
 TC <- function(alpha, t , t_0){ #Fonction transitory change
@@ -55,7 +55,7 @@ TC <- function(alpha, t , t_0){ #Fonction transitory change
     return(alpha^(t-t_0))
   }
 }
-f <- function(t, t_0,t_1){  #Au vu des courbes des séries temporelles étudiées, on essaye un régresseur linéaire
+f <- function(t, t_0,t_1){  #Fonction linéaire
   if (t<t_0 |t>t_1 ){
     return(0)
   }
@@ -81,7 +81,7 @@ for (i in c(1:length(temps))){
 }
 var3 <- ts(var3, start = start(detenus), frequency = 12) #On créé le régresseur linéaire.
 
-spec_TC <- x13_spec(spec = "RSA5c", 
+spec_TC <- x13_spec(spec = "RSA5c", #Spécification dans laquel on modèlise le COVID comme un outliers TC en avril 2020 avec un alpha de 0.91
                          usrdef.varEnabled = TRUE,
                          usrdef.var = var1,
                          usrdef.varType = "Irregular",
@@ -89,7 +89,7 @@ spec_TC <- x13_spec(spec = "RSA5c",
                          easter.enabled = FALSE,
                          outlier.enabled = FALSE )
 
-spec_TCAO <- x13_spec(spec = "RSA5c",
+spec_TCAO <- x13_spec(spec = "RSA5c", #Spécification dans laquel on modèlise le COVID comme un outliers AO en avril 2020 et un outliers TC en mai 2020 avec un alpha de 0.90
                           tradingdays.option = "None",
                            usrdef.outliersEnabled = TRUE,
                            usrdef.outliersType = "AO",
@@ -101,7 +101,7 @@ spec_TCAO <- x13_spec(spec = "RSA5c",
                            easter.enabled = FALSE,
                            outlier.enabled = FALSE)
 
-spec_lin <- x13_spec(spec = "RSA5c",
+spec_lin <- x13_spec(spec = "RSA5c", #Spécification dans laquel on modèlise le COVID comme une chute et un retour linéaire à partir d'avril 2020
                          usrdef.varEnabled = TRUE,
                          usrdef.var = var3,
                          usrdef.varType = "Irregular",
@@ -112,6 +112,8 @@ spec_lin <- x13_spec(spec = "RSA5c",
 ```
 
 ```{r fonctions utiles, echo=FALSE}
+
+#On récupère le premier modèle créé à partir de la série comprenant toutes les données observées ainsi qu'un data frame comprenant les données observées sur les 3 derniers mois et les prévisions de chacun de ces mois à partir du modèle fait sur les données s'arretant au mois d'avant (on prévoit donc aussi le mois suivant).
 table_obs_pre <- function(ts, spec = spec_TC){
   ts_1 <- ts(ts[1:(length(ts)-1)], frequency = 12) #On crée les listes en enlevant 1, 2 ou 3 mois pour comparer les derniers résultats observés et les prévisions des 3 derniers mois.
   ts_2 <- ts(ts[1:(length(ts)-2)], frequency = 12)
@@ -123,18 +125,27 @@ table_obs_pre <- function(ts, spec = spec_TC){
   result <- cbind(c(round(tail(ts_2, 1)), round(modeles[[4]]$regarima$forecast[[1]])),
                       c(round(tail(ts_1, 1)), round(modeles[[3]]$regarima$forecast[[1]])),
                       c(round(tail(ts, 1)), round(modeles[[2]]$regarima$forecast[[1]])),
-                      c(NA, round(modeles[[1]]$regarima$forecast[[1]]))) #On met les valeurs par couple (observés/prévu au mois précédent)
-return(list(modeles[[1]], result))} #On récupère le premier modèle créer à partir de la série comprenant toutes les données observées ainsi qu'un data frame comprenant les données observées sur les 3 derniers mois et les prévisions de chacun de ces mois à partir du modèle fait sur les données s'arretant au mois d'avant (on prévoit donc aussi le mois suivant). 
+                      c(NA, round(modeles[[1]]$regarima$forecast[[1]]))) #On met les valeurs par couple (observé/prévu au mois précédent)
+return(list(modeles[[1]], result))} 
+ 
+#Renvoit une table avec tous les indicateurs intéressant pour interpréter et comparer les resultats des prévisions par rapport aux observations des 3 derniers mois
 mise_en_table <- function(ts, table){
   obs <- round(tail(ts, 4))
-  table <- rbind(table, 
+  
+  table <- rbind(formatC(as.numeric(table[1,]),format="d"), 
+                 formatC(as.numeric(table[2,]),format="d"),
                   diff(table), 
                   round((table[1,]-obs)/obs*100, 3),
                   round((table[2,]-obs)/obs*100, 3))
-  colnames(table) <- c("Juin", "Juillet", "Août", "Septembre")
+  colnames(table) <- c(month.name[month(max(mens_aggreg$dt_mois))-2],
+                       month.name[month(max(mens_aggreg$dt_mois))-1],
+                       month.name[month(max(mens_aggreg$dt_mois))], 
+                       month.name[month(max(mens_aggreg$dt_mois))+1])
   rownames(table) <- c("Observé", "Prévision", "Ecart", "Variation", "Variation prévue")
   return(table)
 }
+
+
 
 
 ```
@@ -145,10 +156,10 @@ On s'intéresse ici au stock agrégé de détenus en France. On peut commencer p
 
 ```{r détenus, echo=FALSE}
 kable(mise_en_table(detenus, table_obs_pre(detenus)[[2]])) %>% 
-      kable_styling("striped", full_width = F)
+      kable_styling("striped", full_width = F) 
 ```
 
-Les résultats sont plutôt bons, en effet, les prévisions ont le même sens de variation que les chiffres observés. Cependant les prévisions sont toujours plus faibles en termes de variations que les résultats observés, on peut supposer que cette année les variations seront plus conséquentes qu'en moyenne. 
+Les résultats sont satisfaisants, en effet, les prévisions ont le même sens de variation que les chiffres observés. Cependant les prévisions sont toujours plus faibles en termes de variations que les résultats observés, on peut supposer que cette année les variations seront plus conséquentes qu'en moyenne. 
 
 ```{r saisonnalité, echo = FALSE}
 plot(table_obs_pre(detenus, spec = spec_TCAO)[[1]]$decomposition)
