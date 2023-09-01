@@ -16,7 +16,7 @@ library(kableExtra)
 library(xtable)
 ```
 
-# Analyse du nombre de personnes déténus en France à la fin du mois de juillet 2023
+# Analyse du nombre de personnes détenues en France à la fin du mois d'août 2023
 
 ```{r table et ts, include=FALSE}
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
@@ -41,7 +41,7 @@ DSPOM <- penit_to_2ts("DSPOM", year = 2016)[[1]]
 
 ```
 
-```{r <-spec, include=FALSE}
+```{r spec, include=FALSE}
 #Ici on précise la spécification qui sera utilisé pour tous les modèles X13. 
 
 #On utilise ici la spécification dans laquel on modèlise le COVID comme un outliers TC en avril 2020 avec un alpha de 0.91.
@@ -129,10 +129,10 @@ mise_en_table <- function(ts, table){
   obs <- round(tail(ts, 4))
   table <- rbind(table, 
                   diff(table), 
-                  round((obs-table[1,])/obs*1000, 3),
-                  round((obs-table[2,])/obs*1000, 3))
+                  round((table[1,]-obs)/obs*100, 3),
+                  round((table[2,]-obs)/obs*100, 3))
   colnames(table) <- c("Juin", "Juillet", "Août", "Septembre")
-  rownames(table) <- c("Observé", "Prévision", "Ecart", "Variation (x1000)", "Variation prévue (x1000)")
+  rownames(table) <- c("Observé", "Prévision", "Ecart", "Variation", "Variation prévue")
   return(table)
 }
 
@@ -141,18 +141,26 @@ mise_en_table <- function(ts, table){
 
 ## Détenus
 
-On s'intéresse ici au stock aggrégé de détenus en France. On peut commencer par observer l'évolution du nombre de détenus en France lors des 3 derniers mois et comparer ces observations aux prévisions faites par les modèles X13.
+On s'intéresse ici au stock agrégé de détenus en France. On peut commencer par observer l'évolution du nombre de détenus en France lors des 3 derniers mois et comparer ces observations aux prévisions faites par les modèles X13.
 
 ```{r détenus, echo=FALSE}
 kable(mise_en_table(detenus, table_obs_pre(detenus)[[2]])) %>% 
       kable_styling("striped", full_width = F)
 ```
 
-Les résulats sont plutot bons, en effet, les prévisions ont le même sens de variation que les chiffres observés. Pour être plus précis sur ces chiffres, on a pensé à décomposer la série détenus de différentes manières pour prendre en compte les saisonnalités propres de certaines composantes du nombre de détenus.
+Les résultats sont plutôt bons, en effet, les prévisions ont le même sens de variation que les chiffres observés. Cependant les prévisions sont toujours plus faibles en termes de variations que les résultats observés, on peut supposer que cette année les variations seront plus conséquentes qu'en moyenne. 
+
+```{r saisonnalité, echo = FALSE}
+plot(table_obs_pre(detenus, spec = spec_TCAO)[[1]]$decomposition)
+```
+
+C'est ce que l'on peut voir sur ce graphique, on voit ici que l'écart entre mai et juin est très faible en moyenne mais qu'il a tendance à s'agrandir sur les dernières années d'où la possible sous-estimation des variations par le modèle. On peut aussi ajouter à cela la composante irrégulière de la série encore impactée par le COVID.
+
+Pour être plus précis sur les prévisions, on a pensé à décomposer la série détenus de différentes manières pour prendre en compte les saisonnalités propres de certaines composantes du nombre de détenus.
 
 ## Première décomposition : Condamnés/Prévenus
 
-Une première décomposition de nombre de détenus peut-être la décomposition en condamnés et en prévenus le nombre de détenus totals étant la somme de ces deux séries. La répartition des effectifs est à peu près de trois quarts de condamnés et un quarts de prévenus.
+Une première décomposition de nombre de détenus peut-être la décomposition en condamnés et en prévenus le nombre de détenus total étant la somme de ces deux séries. La répartition des effectifs est à peu près de trois-quarts de condamnés et un quart de prévenus.
 
 On retrouve ici les résultats d'un modèle X13 sur la série temporelle des individus condamnés.
 
@@ -161,7 +169,7 @@ kable(mise_en_table(condamnes, table_obs_pre(condamnes)[[2]])) %>%
       kable_styling("striped", full_width = F)
 ```
 
-On observe maintenant les résulats d'un modèle X13 sur la série des prévenus.
+On observe maintenant les résultats d'un modèle X13 sur la série des prévenus.
 
 ```{r prévenus, echo=FALSE}
 kable(mise_en_table(prevenus, table_obs_pre(prevenus)[[2]])) %>% 
@@ -177,6 +185,8 @@ kable(mise_en_table(detenus, det1)) %>%
       kable_styling("striped", full_width = F)
 
 ```
+
+Finalement, on peut représenter la queue de la série avec les prévisions sur les deux années à venir et avec un intervalle de confiance à 95% (en gris). Cet intervalle provient de la somme des deux erreurs standards de déviation de chacun des modèles (bien que les variables ne soient pas indépendantes, il est donc uniquement à titre indicatif).
 
 ```{r det cond plus prev graph, include = FALSE}
 x13det <- x13(detenus, spec_TC)
@@ -203,7 +213,7 @@ ggplot(data = df1, aes(x = date, y = fcst)) +
 
 ## Deuxième décomposition : MA/Autres
 
-Une seconde décomposition est une décompostion par quartier pénitentiaire. Un majorité de détenus est incarcérée en maison d'arrêt, on peut donc décomposer en une série représentant les individus détenus en maison d'arrêt et une série représentant les individus incarcérés dans un autre type de quartier pénitentiaire. La répartition est encore une fois de trois quarts pour les individus incarcérs en maison d'arrêt contre un quart pour les autres détenus.
+Une seconde décomposition est une décomposition par quartier pénitentiaire. Une majorité de détenus est incarcérée en maison d'arrêt, on peut donc décomposer en une série représentant les individus détenus en maison d'arrêt et une série représentant les individus incarcérés dans un autre type de quartier pénitentiaire. La répartition est encore une fois de trois-quarts pour les individus incarcérés en maison d'arrêt contre un quart pour les autres détenus.
 
 On retrouve ici les résultats d'un modèle X13 sur la série temporelle des individus incarcérés en maison d'arrêt.
 
@@ -212,7 +222,7 @@ kable(mise_en_table(MA, table_obs_pre(MA)[[2]])) %>%
       kable_styling("striped", full_width = F)
 ```
 
-On observe maintenant les résulats d'un modèle X13 sur la série des détenus incarcérés dans un autre type de quartier pénitentiaire.
+On observe maintenant les résultats d'un modèle X13 sur la série des détenus incarcérés dans un autre type de quartier pénitentiaire.
 
 ```{r Autres, echo=FALSE}
 kable(mise_en_table(Autres, table_obs_pre(Autres)[[2]])) %>% 
@@ -229,7 +239,7 @@ kable(mise_en_table(detenus, det2)) %>%
 
 
 ```
-
+De même que précédemment, on affiche la fin de la série observée avec les prévisions des deux prochaines années ainsi que l'intervalle de confiance à 95% résultant de la somme de chacun des intervalles de confiance des composantes.
 ```{r det MA plus Autres graph, include=FALSE}
 x13MA <- x13(MA, spec_TC)
 x13Autres <- x13(Autres, spec_TC)
@@ -253,7 +263,7 @@ ggplot(data = df2, aes(x = date, y = fcst)) +
 
 ## Troisième décomposition par DISP
 
-Enfin une dernière décomposition permettant de prendre en compte des séries ayant des saisonnalités propre est la décompostion par Direction Interrégionale. Par soucis de clarté, on affiche uniquement les résultats agrégés et non les résultats de chaques modèles pour les dix DI. 
+Enfin une dernière décomposition permettant de prendre en compte des séries ayant des saisonnalités propre est la décomposition par Direction Interrégionale. Par soucis de clarté, on affiche uniquement les résultats agrégés et non les résultats de chaque modèle pour les dix DI. 
 
 ```{r det decomposition disp, echo=FALSE}
 det3 <- table_obs_pre(DISP_BORDEAUX)[[2]] +
@@ -272,6 +282,8 @@ kable(mise_en_table(detenus, det3)) %>%
 
 ```
 ## Conclusion
+
+On retrouve finalement la comparaison entre toutes les prévisions sur les deux années à venir. Malgré des différences de niveau on retrouve une pente pour la tendance équivalente ainsi que des saisonnalités comparables. 
 
 ```{r graph, echo=FALSE}
 
@@ -302,10 +314,10 @@ df <-data.frame(rep(date, 4),
             pre_MA_Autres,
             pre_DISP),
             group = c(
-                      rep("Prévision détenus", 24),
-                      rep("Prévisions décomposition Condamnés/Prévenus", 24),
-                      rep("Prévisions MA/Autres", 24),
-                      rep("Prévisions DISP", 24)))
+                      rep("Détenus", 24),
+                      rep("Condamnés/Prévenus", 24),
+                      rep("MA/Autres", 24),
+                      rep("DISP", 24)))
 
 ggplot(df) +
   aes(x = rep.date..4., y = donnees, colour = group) +
