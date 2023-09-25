@@ -15,6 +15,7 @@ library(astsa) # pour voir acf et pacf
 library(TSA) # pour l'eacf
 library(knitr)
 library(uroot) #pour le test HEGY
+source("function.R")
 
 mens_aggreg <- read_sas("~/work/mens_agreg.sas7bdat")
 
@@ -33,16 +34,15 @@ ALL <- mens_aggreg %>%
   summarise(detenus = sum(detenus))
 
 MA <- mens_aggreg %>% filter(quartier_etab == "MA/QMA") %>% group_by(dt_mois) %>% summarise(detenus_MA = sum(detenus) )
-View(MA)                             
-ALL_2013 <- ALL[107:190,]
-
+                          
+ALL_2013_2019 <- ALL[107:190,]
 tsALL <- ts(ALL$detenus, start = 2004, frequency = 12)
-tsALL_2013 <- ts(ALL_2013$detenus, start = 2013, frequency = 12)
-plot(tsALL_2013)
+tsALL_2013_2019 <- ts(ALL_2013_2019$detenus, start = 2013, frequency = 12)
+plot(tsALL_2013_2019)
 
-
+tsALL <- penit_to_2ts("France", year = 2007)[[1]]
 plot(tsALL,
-     xlab = "Ann?e")
+     xlab = "Année")
 acf(tsALL)
 pacf(tsALL)
 monthplot(tsALL)
@@ -52,38 +52,38 @@ lag.plot (tsALL , lags =12 , layout =c(3 ,4) ,do.lines = FALSE )
 plot(decompose(tsALL))
 
 
+length(tsALL)
+summary(lm(tsALL ~ seq(1, 197))) #on teste la pr?sence d'une tendance
 
-summary(lm(tsALL ~ seq(1, 231))) #on teste la pr?sence d'une tendance
+#m?me chose avec un test de Dickey Fuller
+test.df.trend <- ur.df(log(tsALL),
+                       type = "trend", lags = 0)
 
-# #m?me chose avec un test de Dickey Fuller
-# test.df.trend <- ur.df(log(tsma),
-#                        type = "trend", lags = 0)
-# 
-# res.df <- data.frame(as.vector(test.df.trend@teststat),
-#                      test.df.trend@cval)
-# names(res.df) <- c("Stat","CV 1pct", "CV 5pct", "CV 10pct")
-# xtable(res.df) %>%
-#   kable(digits=2) %>%
-#   kable_styling()
-# #On v?rifie que la tendance est bien d?terministe
-# test.df.trend <- ur.df(diff(log(tsma)),
-#                        type = "drift", lags = 1)
-# 
-# 
-# #Fonction utile pour plus tard
-# modesspectral <- function(spec)
-# {# L'argument spec est le r?sultat de la fonction parzen.wge
-# x <- spec[[2]]
-# n <- length(x)
-# aux1 <- x[2:(n-1)] - x[1:(n-2)]
-# aux2 <- x[2:(n-1)] - x[3:n]
-# aux <- (aux1>0)*(aux2>0)
-# specmodes <- which(aux >0)
-# freq <- spec[[1]][specmodes]
-# res <- rbind(freq,spec[[2]][specmodes],1/freq)
-# rownames(res) <- c("Fr?quences","Densit?","P?riodes")
-# res
-# }
+res.df <- data.frame(as.vector(test.df.trend@teststat),
+                     test.df.trend@cval)
+names(res.df) <- c("Stat","CV 1pct", "CV 5pct", "CV 10pct")
+xtable(res.df) %>%
+  kable(digits=2) %>%
+  kable_styling()
+#On v?rifie que la tendance est bien d?terministe
+test.df.trend <- ur.df(diff(log(tsma)),
+                       type = "drift", lags = 1)
+
+
+#Fonction utile pour plus tard
+modesspectral <- function(spec)
+{# L'argument spec est le r?sultat de la fonction parzen.wge
+x <- spec[[2]]
+n <- length(x)
+aux1 <- x[2:(n-1)] - x[1:(n-2)]
+aux2 <- x[2:(n-1)] - x[3:n]
+aux <- (aux1>0)*(aux2>0)
+specmodes <- which(aux >0)
+freq <- spec[[1]][specmodes]
+res <- rbind(freq,spec[[2]][specmodes],1/freq)
+rownames(res) <- c("Fr?quences","Densit?","P?riodes")
+res
+}
 
 
 diffp <- diff(log(tsALL), differences = 1)
@@ -222,6 +222,6 @@ adj_r2 <- function(model){
 }
 
 adj_r2(sarima215)
-ggseasonplot(tsALL_2013, polar = FALSE)
+ggseasonplot(tsALL_2013_2019, polar = FALSE)
 
 
